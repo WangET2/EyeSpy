@@ -69,7 +69,7 @@
 
    Given that the images being processed are single-channel, we assume that variance in *f(x,y)* is caused by variation in fluorescence.
    
-4) Each value in the two-dimensional matrix is transformed by
+4) Each value in the two-dimensional matrix is normalized by
 
    ![image](https://github.com/user-attachments/assets/cdcecb8b-815c-426f-8157-15062de18dc0)
 
@@ -118,4 +118,5 @@
   - Add user interface for configuring settings.
   - Refactor GUI code.
   - Ensure portability (macOS, Linux).
-  - Add the capability to determine fluorescence of all images in a directory, rather than only live.
+  - Add the capability to calculate fluorescence of existing images in a directory, rather than only in a live environment.
+  - Add images to README
