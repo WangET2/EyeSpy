@@ -71,9 +71,9 @@
    
 4) Each value in the two-dimensional matrix is transformed by
 
-   ![image](https://github.com/user-attachments/assets/cb47f1e8-8cd3-4ba2-ba92-c22108ec1b07)
+   ![image](https://github.com/user-attachments/assets/cdcecb8b-815c-426f-8157-15062de18dc0)
 
-   where *f '(x,y)* is the new value of the pixel at location *(x,y)*, *max f(x,y)* is the largest value in the original matrix excluding outliers, and 255 is a constant representing the white point of an image.
+   where *f '(x,y)* is the new value of the pixel at location *(x,y)*, *max{f(x,y)}* is the largest value in the original matrix excluding outliers, and 255 is a constant representing the white point of an image.
 
    This process effectively allows us to redefine the value of each pixel in the image proportionately to the brightest value in the image, which facilitates the processing of darker images down the line. As a trade-off, this technique can sometimes draw out fluorescence in the background, which is handled in later steps.
 
@@ -99,9 +99,15 @@
 
 9) Data from the previous step is used to determine a circular region of interest contained entirely within the fly's eye.
 
+    ![image](https://github.com/user-attachments/assets/fb45c356-ec71-4f33-9dc7-1e864db145f1)
+
+    Let R be the set of pixels contained within the circular region of interest.
+
    ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
 
-10) Finally, the mean fluorescence value of the circular region of interest is calculated.
+10) Finally, the mean fluorescence value of the circular region of interest is calculated:
+
+    ![image](https://github.com/user-attachments/assets/146f5696-f098-4aa7-94e3-623fc6b4a9ca)
 
     ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
    
