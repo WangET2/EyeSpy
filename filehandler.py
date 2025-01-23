@@ -10,74 +10,77 @@ WHITE_POINT = 4096
 KERNEL = np.ones((9,9), np.uint8)
 
 def runprocessing(file: Path) -> float:
-    #Initialize image as 2D numpy array.
-    czi_file = czifile.CziFile(file)
-    cziimg = _reduce_dims(czi_file.asarray())
+    try:
+        #Initialize image as 2D numpy array.
+        czi_file = czifile.CziFile(file)
+        cziimg = _reduce_dims(czi_file.asarray())
 
-    #Get image scaling.
-    metadata = czi_file.metadata(raw=False)
-    scaling = str(metadata['ImageDocument']['Metadata']['Scaling']['Items']['Distance'][0]['Value'])
-    scaling = float(scaling[:scaling.index('e')])
-    czi_file.close()
+        #Get image scaling.
+        metadata = czi_file.metadata(raw=False)
+        scaling = str(metadata['ImageDocument']['Metadata']['Scaling']['Items']['Distance'][0]['Value'])
+        scaling = float(scaling[:scaling.index('e')])
+        czi_file.close()
 
-    #Apply thresholding.
-    bestfit = _best_fit(cziimg)
-    thresholded = _threshold_unique(bestfit)
-    thresholded_8u = cv.normalize(thresholded, dst=None,
-                                  alpha=0, beta=255,
-                                  norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-    opened = cv.morphologyEx(thresholded_8u, cv.MORPH_OPEN, KERNEL)
-    closed = cv.morphologyEx(opened, cv.MORPH_CLOSE, KERNEL)
+        #Apply thresholding.
+        bestfit = _best_fit(cziimg)
+        thresholded = _threshold_unique(bestfit)
+        thresholded_8u = cv.normalize(thresholded, dst=None,
+                                      alpha=0, beta=255,
+                                      norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+        opened = cv.morphologyEx(thresholded_8u, cv.MORPH_OPEN, KERNEL)
+        closed = cv.morphologyEx(opened, cv.MORPH_CLOSE, KERNEL)
 
-    #Apply distance transform to remove loosely connected regions.
-    regressed = cv.distanceTransform(closed, cv.DIST_L2, 5)
+        #Apply distance transform to remove loosely connected regions.
+        regressed = cv.distanceTransform(closed, cv.DIST_L2, 5)
 
-    #Reapply thresholding to create binary mask.
-    thresholded2 = _threshold_unique(regressed)
-    opened2 = cv.morphologyEx(thresholded2, cv.MORPH_OPEN, KERNEL)
-    closed2 = cv.morphologyEx(opened, cv.MORPH_CLOSE, KERNEL)
+        #Reapply thresholding to create binary mask.
+        thresholded2 = _threshold_unique(regressed)
+        opened2 = cv.morphologyEx(thresholded2, cv.MORPH_OPEN, KERNEL)
+        closed2 = cv.morphologyEx(opened, cv.MORPH_CLOSE, KERNEL)
 
-    #Use contours to remove background fluorescence.
-    contours, hierarchy = cv.findContours(closed2, cv.RETR_EXTERNAL,
-                                          cv.CHAIN_APPROX_SIMPLE)
-    eye = max(contours, key=cv.contourArea)
+        #Use contours to remove background fluorescence.
+        contours, hierarchy = cv.findContours(closed2, cv.RETR_EXTERNAL,
+                                              cv.CHAIN_APPROX_SIMPLE)
+        eye = max(contours, key=cv.contourArea)
 
-    #Fit an ellipse to approximate eye shape.
-    ellipse = cv.fitEllipse(eye)
-    cx, cy = ellipse[0]
-    major, minor = ellipse[1]
-    theta = ellipse[2]
+        #Fit an ellipse to approximate eye shape.
+        ellipse = cv.fitEllipse(eye)
+        cx, cy = ellipse[0]
+        major, minor = ellipse[1]
+        theta = ellipse[2]
 
-    #Determine radius of Region of Interest.
-    if theta <= 90:
-        yrad = (major / 2) * math.sin(math.radians(theta))
-        xrad = (major / 2) * math.cos(math.radians(theta))
-    elif 90 < theta <= 180:
-        yrad = (major / 2) * math.sin(math.radians(180 - theta))
-        xrad = (major / 2) * math.cos(math.radians(180 - theta))
+        #Determine radius of Region of Interest.
+        if theta <= 90:
+            yrad = (major / 2) * math.sin(math.radians(theta))
+            xrad = (major / 2) * math.cos(math.radians(theta))
+        elif 90 < theta <= 180:
+            yrad = (major / 2) * math.sin(math.radians(180 - theta))
+            xrad = (major / 2) * math.cos(math.radians(180 - theta))
 
-    #Ensure Region of Interest is within image bounds.
-    y_shape, x_shape = thresholded_8u.shape
-    if yrad - cy < 0:
-        yrad = cy
-    if yrad + cy >= y_shape:
-        yrad = y_shape - cy - 1
-    if xrad - cx < 0:
-        xrad = cx
-    if xrad + cx >= x_shape:
-        xrad = x_shape - cx - 1
-    radius = min(yrad, xrad, 2500/scaling)
+        #Ensure Region of Interest is within image bounds.
+        y_shape, x_shape = thresholded_8u.shape
+        if yrad - cy < 0:
+            yrad = cy
+        if yrad + cy >= y_shape:
+            yrad = y_shape - cy - 1
+        if xrad - cx < 0:
+            xrad = cx
+        if xrad + cx >= x_shape:
+            xrad = x_shape - cx - 1
+        radius = min(yrad, xrad, 2500/scaling)
 
-    #Determine mean flourescence of ROI.
-    roi = []
-    for a in range(y_shape):
-        for b in range(x_shape):
-            if pow(b - cx, 2) + pow(a - cy, 2) <= pow(radius, 2):
-                roi.append(float(cziimg[a][b]))
+        #Determine mean flourescence of ROI.
+        roi = []
+        for a in range(y_shape):
+            for b in range(x_shape):
+                if pow(b - cx, 2) + pow(a - cy, 2) <= pow(radius, 2):
+                    roi.append(float(cziimg[a][b]))
 
-    meanflour = stat.mean(roi)
-    rounded = round(Decimal(str(meanflour)), 3)
-    return float(rounded)
+        meanflour = stat.mean(roi)
+        rounded = round(Decimal(str(meanflour)), 3)
+        return float(rounded)
+    except:
+        return "Error"
     
 
 
