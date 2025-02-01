@@ -50,12 +50,13 @@ def runprocessing(file: Path) -> float:
         theta = ellipse[2]
 
         #Determine radius of Region of Interest.
+        radtheta = math.radians(theta)
         if theta <= 90:
-            yrad = (major / 2) * math.sin(math.radians(theta))
-            xrad = (major / 2) * math.cos(math.radians(theta))
+            yrad = (major / 2) * math.sin(radtheta)
+            xrad = (major / 2) * math.cos(radtheta)
         elif 90 < theta <= 180:
-            yrad = (major / 2) * math.sin(math.radians(180 - theta))
-            xrad = (major / 2) * math.cos(math.radians(180 - theta))
+            yrad = (major / 2) * math.sin(radtheta)
+            xrad = (major / 2) * math.cos(radtheta)
 
         #Ensure Region of Interest is within image bounds.
         y_shape, x_shape = thresholded_8u.shape

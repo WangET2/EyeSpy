@@ -23,12 +23,12 @@ class ImageHandler:
         writer = csv.writer(csvfile)
         writer.writerow(['File Name', 'Fluorescence'])
         csvfile.flush()
+        seenfiles = currentfiles.copy()
         while self.running:
-            QApplication.processEvents()
-            previousfiles = currentfiles
             currentfiles = os.listdir(self.directory)
+            QApplication.processEvents()
             queue = [item for item in currentfiles if item not in
-                     previousfiles and 'LIVE' not in item.upper()
+                     seenfiles and 'LIVE' not in item.upper()
                      and 'PREVIEW' not in item.upper() and 'CSV' not in item.upper()]
             if queue:
                 time.sleep((EXPOSURE / 1000) + 1.5)
@@ -41,6 +41,7 @@ class ImageHandler:
                 csvfile.flush()
                 self.parent.update_textbox(str(file) + ': ' + str(mean))
                 queue.remove(file)
+                seenfiles.append(file)
                 
 
 class EyeSpy:
