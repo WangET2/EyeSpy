@@ -65,7 +65,9 @@
 
 3) The image is opened as a two-dimensional matrix of values, where the fluorescence *F* of a pixel can be expressed as a function of its location *(x,y)*.
 
-   ![image](https://github.com/user-attachments/assets/e8e58c2a-a36a-4d50-962a-817b508617df)
+   The domain of the function spans the set of valid pixel locations of the image *I*.
+
+   ![image](https://github.com/user-attachments/assets/e289aba8-954d-49df-a102-840aabb78530)
 
    Given that the images being processed are single-channel, we assume that variance in *f(x,y)* is caused by variation in fluorescence.
    
@@ -111,9 +113,9 @@
 
     ![Figure_7](https://github.com/user-attachments/assets/9c93537c-9933-4706-87f3-e8d515d4fcdc)
 
-    Let P be the set of pixels contained within the circular region of interest and (x<sub>c</sub>, y<sub>c</sub>) be the coordinates of the pixel identified as the center of the eye.
+    Let *P* be the set of pixels contained within the circular region of interest, *I* be the set of pixel locations in the image, *(x<sub>c</sub>, y<sub>c</sub>)* be the coordinates of the pixel identified as the center of the eye, and *r* be the radius of the ROI.
 
-    ![image](https://github.com/user-attachments/assets/44ba75b6-660c-4398-ae04-613136a748a2)
+    ![image](https://github.com/user-attachments/assets/a28b009a-4222-46f8-9fdb-86b745cd873a)
 
 
 11) Finally, the mean fluorescence value of the circular region of interest is calculated:
