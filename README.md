@@ -84,34 +84,35 @@
 
 5) To facilitate further processing, the image is converted into a binary image using thresholding.
 
-   This process is under heavy revision as we conduct tests to determine the most accurate way to threshold varying images.
+   Thresholding is followed by morphological opening and closing, in order to reduce noise and fill small gaps, respectively.
    
-   ![Figure_2](https://github.com/user-attachments/assets/78f3de2d-cd65-4d4b-9ae7-e8b222b3c0e9)
+   ![Figure_2](https://github.com/user-attachments/assets/b21b6688-3a63-45f6-9301-93d97671956f)
 
 
 6) Leveraging the OpenCV library, the distance transform is applied to the thresholded image in order to eliminate potential fluoresence originating from the fly's body.
 
-   ![Figure_3](https://github.com/user-attachments/assets/e95126af-9c3d-41d4-a869-b0818295b853)
+   ![Figure_3](https://github.com/user-attachments/assets/c25e5c51-f5e4-40b2-befd-5ee18becfe2f)
 
 
 7) Thresholding is applied again in order to eliminate connection points between the fly's eye and body.
+   Once again, this process is followed by morphological opening and closing to reduce noise and close small gaps in the binary mask.
 
-   ![Figure_4](https://github.com/user-attachments/assets/249b1169-96eb-4668-b757-31336b9a85a9)
+   ![Figure_4](https://github.com/user-attachments/assets/7c65add1-3766-43ce-b33c-dd9bdbf7dcdc)
 
 
 8) Once again with the OpenCV library, contour detection is utilized to separate the eye (the largest contour) from any potential background fluorescence slipping through thresholding.
 
-   ![Figure_5](https://github.com/user-attachments/assets/c5d31160-566c-4be9-a1df-bd27df4dc2f2)
+   ![Figure_5](https://github.com/user-attachments/assets/79b2d9ef-04f4-4b92-8d92-5f9a7603a712)
 
 
 9) Using OpenCV, an ellipse is roughly fitted to the region marked as the eye to determine the approxite boundaries and radius of the eye.
 
-   ![Figure_6](https://github.com/user-attachments/assets/a0504683-fab0-45e0-8020-0b4561a9e92d)
+   ![Figure_6](https://github.com/user-attachments/assets/eb713b42-a4e0-44f4-8dfe-8feba038a76e)
 
 
 10) Data from the previous step is used to determine a circular region of interest contained entirely within the fly's eye.
 
-    ![Figure_7](https://github.com/user-attachments/assets/9c93537c-9933-4706-87f3-e8d515d4fcdc)
+    ![Figure_7](https://github.com/user-attachments/assets/86160685-55f2-4cf9-a26b-76f3884715cd)
 
     Let *P* be the set of pixels contained within the circular region of interest, *I* be the set of pixel locations in the image, *(x<sub>c</sub>, y<sub>c</sub>)* be the coordinates of the pixel identified as the center of the eye, and *r* be the radius of the ROI.
 
