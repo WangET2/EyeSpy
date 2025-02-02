@@ -5,6 +5,8 @@ from pathlib import Path
 import statistics as stat
 import math
 from decimal import Decimal
+import tifffile as tf
+import os
 
 WHITE_POINT = 4096
 KERNEL = np.ones((9,9), np.uint8)
@@ -21,8 +23,22 @@ def runprocessing(file: Path) -> float:
         scaling = float(scaling[:scaling.index('e')])
         czi_file.close()
 
-        #Apply thresholding.
+        #Apply scaling to increase brightness.
         bestfit = _best_fit(cziimg)
+        bestfit_8u = cv.normalize(bestfit, dst=None, alpha=0, beta=255,
+                                  norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
+
+        #Write scaled image as a .tiff file (dev feature)
+        parentdir = file.parent.absolute()
+        filename = os.path.basename(os.path.normpath(file))
+        if not os.path.exists(Path(str(parentdir) + r'/inputs')):
+            os.makedirs(Path(str(parentdir) + r'/inputs'))
+        path1 = Path(str(parentdir) + r'/inputs/' + str(filename))
+        tw = tf.TiffWriter(path1)
+        tw.write(bestfit_8u)
+        tw.close()
+
+        #Apply thresholding to create binary mask.
         thresholded = _threshold_unique(bestfit)
         thresholded_8u = cv.normalize(thresholded, dst=None,
                                       alpha=0, beta=255,
@@ -70,12 +86,20 @@ def runprocessing(file: Path) -> float:
             xrad = x_shape - cx - 1
         radius = min(yrad, xrad, 2500/scaling)
 
-        #Determine mean flourescence of ROI.
+        #Determine mean flourescence of ROI and write image with marked ROI as .tiff file (dev feature).
         roi = []
         for a in range(y_shape):
             for b in range(x_shape):
                 if pow(b - cx, 2) + pow(a - cy, 2) <= pow(radius, 2):
                     roi.append(float(cziimg[a][b]))
+                    bestfit_8u[a][b] = 100
+
+        if not os.path.exists(Path(str(parentdir) + r'/outputs')):
+            os.makedirs(Path(str(parentdir) + r'/outputs'))
+        path2 = Path(str(parentdir) + r'/outputs/' + str(filename))
+        tw2 = tf.TiffWriter(path2)
+        tw2.write(bestfit_8u)
+        tw2.close()
 
         meanflour = stat.mean(roi)
         rounded = round(Decimal(str(meanflour)), 3)
