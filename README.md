@@ -77,39 +77,51 @@
 
    This process effectively allows us to redefine the value of each pixel in the image proportionately to the brightest value in the image, which facilitates the processing of darker images down the line. As a trade-off, this technique can sometimes draw out fluorescence in the background, which is handled in later steps.
 
-   ![image](https://github.com/user-attachments/assets/1c897a1a-cd95-400e-8843-7b57fe3f90c8)
+   ![Figure_1](https://github.com/user-attachments/assets/2965659c-8974-4f6d-a62d-90051faab85e)
+
 
 5) To facilitate further processing, the image is converted into a binary image using thresholding.
 
    This process is under heavy revision as we conduct tests to determine the most accurate way to threshold varying images.
    
-   ![image](https://github.com/user-attachments/assets/f875b4f9-4bb3-4dae-ac5f-ebc0d7ff48cd)
+   ![Figure_2](https://github.com/user-attachments/assets/78f3de2d-cd65-4d4b-9ae7-e8b222b3c0e9)
+
 
 6) Leveraging the OpenCV library, the distance transform is applied to the thresholded image in order to eliminate potential fluoresence originating from the fly's body.
 
-   ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
+   ![Figure_3](https://github.com/user-attachments/assets/e95126af-9c3d-41d4-a869-b0818295b853)
 
-7) Once again with the OpenCV library, contour detection is utilized to separate the eye (the largest contour) from any potential background fluorescence slipping through thresholding.
 
-   ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
+7) Thresholding is applied again in order to eliminate connection points between the fly's eye and body.
 
-8) Using OpenCV, an ellipse is roughly fitted to the region marked as the eye to determine the approxite boundaries and radius of the eye.
+   ![Figure_4](https://github.com/user-attachments/assets/249b1169-96eb-4668-b757-31336b9a85a9)
 
-   ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
 
-9) Data from the previous step is used to determine a circular region of interest contained entirely within the fly's eye.
+8) Once again with the OpenCV library, contour detection is utilized to separate the eye (the largest contour) from any potential background fluorescence slipping through thresholding.
 
-    ![image](https://github.com/user-attachments/assets/fb45c356-ec71-4f33-9dc7-1e864db145f1)
+   ![Figure_5](https://github.com/user-attachments/assets/c5d31160-566c-4be9-a1df-bd27df4dc2f2)
 
-    Let R be the set of pixels contained within the circular region of interest.
 
-   ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
+9) Using OpenCV, an ellipse is roughly fitted to the region marked as the eye to determine the approxite boundaries and radius of the eye.
 
-10) Finally, the mean fluorescence value of the circular region of interest is calculated:
+   ![Figure_6](https://github.com/user-attachments/assets/a0504683-fab0-45e0-8020-0b4561a9e92d)
 
-    ![image](https://github.com/user-attachments/assets/146f5696-f098-4aa7-94e3-623fc6b4a9ca)
 
-    ![image](https://github.com/user-attachments/assets/666f0f95-0b3a-44e7-8264-f3fc1e12694c)
+10) Data from the previous step is used to determine a circular region of interest contained entirely within the fly's eye.
+
+    ![Figure_7](https://github.com/user-attachments/assets/9c93537c-9933-4706-87f3-e8d515d4fcdc)
+
+    Let P be the set of pixels contained within the circular region of interest and (x<sub>c</sub>, y<sub>c</sub>) be the coordinates of the pixel identified as the center of the eye.
+
+    ![image](https://github.com/user-attachments/assets/44ba75b6-660c-4398-ae04-613136a748a2)
+
+
+11) Finally, the mean fluorescence value of the circular region of interest is calculated:
+
+    ![image](https://github.com/user-attachments/assets/67912d6c-cc81-489e-aee9-881707cee151)
+
+    ![image](https://github.com/user-attachments/assets/18988f4b-c9d0-4c57-9405-765691d08da6)
+
    
 
 
