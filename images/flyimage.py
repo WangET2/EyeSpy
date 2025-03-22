@@ -6,14 +6,21 @@ class FlyImage:
     """Used for persistent storage of image arrays, preventing errors
     caused by attempting to follow paths that no longer exist."""
 
-    def __init__(self, array: np.ndarray):
+    def __init__(self, array: np.ndarray, scaling: int):
         #Handle reading the array from the file upstream, for flexibility.
         self._array = array
+        #Scaling is provided by the config.
+        self._scaling = scaling
 
     @property
     def array(self) -> np.ndarray:
         """Array representation of the image."""
         return self._array
+
+    @property
+    def scaling(self) -> int:
+        """Scaling of the image, in µm/pixel."""
+        return self._scaling
 
 
 class CziFlyImage:
