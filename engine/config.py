@@ -7,6 +7,15 @@ from configparser import ConfigParser
 
 class Config:
     def __init__(self):
+        if not 'options.ini' in os.listdir():
+            config = ConfigParser()
+            configfile = open('options.ini', 'w')
+            config['DEFAULT'] = {'Directory': 'None',
+                                 'Scaling': '5',
+                                 'White Point': '128'}
+            config['ADVANCED'] = {'Threshold': '100'}
+            config.write(configfile)
+            configfile.close()
         self.update()
 
     @property
@@ -27,14 +36,6 @@ class Config:
         
     def update(self):
         config = ConfigParser()
-        if not 'options.ini' in os.listdir():
-            configfile = open('options.ini', 'w')
-            config['DEFAULT'] = {'Directory': 'None',
-                                 'Scaling': '5',
-                                 'White Point': '128'}
-            config['ADVANCED'] = {'Threshold': '100'}
-            config.write(configfile)
-            configfile.close()
         config.read('options.ini')
         self._directory = config['DEFAULT']['Directory']
         self._scaling = config['DEFAULT']['Scaling']
