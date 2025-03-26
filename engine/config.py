@@ -7,20 +7,7 @@ from configparser import ConfigParser
 
 class Config:
     def __init__(self):
-        config = ConfigParser()
-        if not 'options.ini' in os.listdir():
-            configfile = open('options.ini', 'w')
-            config['DEFAULT'] = {'Directory': 'None',
-                                 'Scaling': '5',
-                                 'White Point': '128'}
-            config['ADVANCED'] = {'Threshold': '100'}
-            config.write(configfile)
-            configfile.close()
-        config.read('options.ini')
-        self._directory = config['DEFAULT']['Directory']
-        self._scaling = config['DEFAULT']['Scaling']
-        self._white_point = config['DEFAULT']['WhitePoint']
-        self._threshold = config['ADVANCED']['Threshold']
+        self.update()
 
     @property
     def directory(self):
@@ -37,4 +24,20 @@ class Config:
     @property
     def threshold(self):
         return self._threshold
+        
+    def update(self):
+        config = ConfigParser()
+        if not 'options.ini' in os.listdir():
+            configfile = open('options.ini', 'w')
+            config['DEFAULT'] = {'Directory': 'None',
+                                 'Scaling': '5',
+                                 'White Point': '128'}
+            config['ADVANCED'] = {'Threshold': '100'}
+            config.write(configfile)
+            configfile.close()
+        config.read('options.ini')
+        self._directory = config['DEFAULT']['Directory']
+        self._scaling = config['DEFAULT']['Scaling']
+        self._white_point = config['DEFAULT']['WhitePoint']
+        self._threshold = config['ADVANCED']['Threshold']
 
