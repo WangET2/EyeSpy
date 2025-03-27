@@ -9,13 +9,12 @@ class Config:
     def __init__(self):
         if not 'options.ini' in os.listdir():
             config = ConfigParser()
-            configfile = open('options.ini', 'w')
-            config['DEFAULT'] = {'Directory': 'None',
-                                 'Scaling': '5',
-                                 'White Point': '128'}
-            config['ADVANCED'] = {'Threshold': '100'}
-            config.write(configfile)
-            configfile.close()
+            with open('options.ini', 'w') as configfile:
+                config['DEFAULT'] = {'Directory': 'None',
+                                     'Scaling': '5',
+                                     'White Point': '128'}
+                config['ADVANCED'] = {'Threshold': '100'}
+                config.write(configfile)
         self.update()
 
     @property
