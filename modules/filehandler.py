@@ -9,6 +9,8 @@ from decimal import Decimal
 WHITE_POINT = 4096
 KERNEL = np.ones((9,9), np.uint8)
 
+
+
 def runprocessing(file: Path) -> float:
     try:
         #Initialize image as 2D numpy array.
@@ -36,7 +38,7 @@ def runprocessing(file: Path) -> float:
         #Reapply thresholding to create binary mask.
         thresholded2 = _threshold_unique(regressed)
         opened2 = cv.morphologyEx(thresholded2, cv.MORPH_OPEN, KERNEL)
-        closed2 = cv.morphologyEx(opened, cv.MORPH_CLOSE, KERNEL)
+        closed2 = cv.morphologyEx(opened2, cv.MORPH_CLOSE, KERNEL)
 
         #Use contours to remove background fluorescence.
         contours, hierarchy = cv.findContours(closed2, cv.RETR_EXTERNAL,
