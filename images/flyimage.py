@@ -1,11 +1,10 @@
 import abc
-
+import xml.etree.ElementTree as ET
 import numpy as np
 from pathlib import Path
 import czifile
 
-@ abc.ABC
-class FlyImage:
+class BaseFlyImage:
     @property
     def array(self):
         return self._array
@@ -18,7 +17,7 @@ class FlyImage:
     def white_point(self):
         return self._white_point
 
-class OtherFlyImage(FlyImage):
+class FlyImage(BaseFlyImage):
     """Used for persistent storage of image arrays, preventing errors
     caused by attempting to follow paths that no longer exist."""
 
@@ -31,7 +30,7 @@ class OtherFlyImage(FlyImage):
         self._white_point = white_point
 
 
-class CziFlyImage(FlyImage):
+class CziFlyImage(BaseFlyImage):
     """CZI fly image. Stores image arrays and scaling persistently
     upon object creation, but all other metadata is lost."""
 
@@ -41,16 +40,18 @@ class CziFlyImage(FlyImage):
         except:
             raise FileNotFoundError(f'Could not find {image_directory}.')
 
-        #TODO clean up this mess...
-        metadata = img.metadata(raw=False)
-        self._scaling = str(metadata['ImageDocument']['Metadata']['Scaling']['Items']['Distance'][0]['Value'])
-        self._scaling = float(self._scaling[:self._scaling.index('e')])
+        try:
+            metadata = img.metadata()
+            root = ET.fromstring(metadata)
+            scaling = root.find(".//ImagePixelSize")
+            self._scaling = float(scaling.text[0:scaling.text.index(',')])
+            self._white_point = int(root.find(".//CameraPixelMaximum").text)
+        except:
+            raise FileNotFoundError(f'Metadata of {image_directory} could not be parsed!')
 
         try:
-            self._array = img.asarray()[:, 1, 1, :]
+            self._array = img.asarray()[0, :, :, 0]
         except:
             raise ValueError("File format was not CZI or could not be loaded as expected.")
 
-        #TODO Check metadata for white point
-        self._white_point = 0
 
