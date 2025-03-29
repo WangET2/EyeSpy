@@ -86,7 +86,7 @@ def get_mean_circular(image: FlyImage|CziFlyImage, contour: np.ndarray) -> float
             x_roi = np.where((np.arange(image.array.shape[1]) - cx) ** 2 + y_radius_squared < rad_squared)[0]
             intensity_sum += image.array[i, x_roi].sum()
             count += len(x_roi)
-    return 0 if count == 0 else intensity_sum / count
+    return 0 if count == 0 else round(float(intensity_sum / count), 3)
 
 
 
