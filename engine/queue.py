@@ -32,7 +32,7 @@ class FileQueue:
             self._tail = self._tail.next
         self._seen.add(val)
 
-    def next(self) -> Path:
+    def front(self) -> Path:
         if self.is_empty():
             return None
         return self._directory / self._head.data
@@ -41,7 +41,10 @@ class FileQueue:
         if self.is_empty():
             return
         self._head = self._head.next
+        if self.is_empty():
+            self._tail = None
 
     def update(self) -> None:
-        for val in os.listdir(self._directory):
-            self.enqueue(val)
+        for val in self._directory.iterdir():
+            if val.is_file():
+                self.enqueue(val.name)
