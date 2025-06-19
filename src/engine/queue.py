@@ -60,8 +60,7 @@ class FileQueue(BaseQueue):
             imgarr = stable_read(imgpath)
             if imgarr:
                 return imgarr
-            else:
-                self.dequeue()
+            self.dequeue()
         return None
 
 class ImageQueue(BaseQueue):
