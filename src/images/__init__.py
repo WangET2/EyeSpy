@@ -1,1 +1,1 @@
-import src.images.flyimage
+import src.images.image

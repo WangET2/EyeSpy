@@ -5,6 +5,9 @@
 from configparser import ConfigParser
 from pathlib import Path
 
+from ..images.image import TiffImage, CziImage
+
+
 class Config:
     def __init__(self):
         self._config = ConfigParser()
@@ -24,6 +27,10 @@ class Config:
     @property
     def image_format(self) -> str:
         return self._config.get('files','Image_Format',fallback='CZI')
+
+    @property
+    def enqueue_existing(self) -> bool:
+        return self._config.getboolean('files','Enqueue_Existing', fallback=False)
 
     @property
     def white_point(self) -> int:
@@ -64,6 +71,7 @@ class Config:
     @property
     def max_checks(self) -> int:
         return self._config.getint('advanced', 'Max_Checks', fallback=10)
+
         
 
 
@@ -71,7 +79,8 @@ class Config:
         with open('options.ini', 'w') as config_file:
             self._config['files'] = {'Directory': 'None',
                                      'Queue_Type': 'File',
-                                     'Image_Format': 'CZI'}
+                                     'Image_Format': 'CZI',
+                                     'Enqueue_Existing': 'False'}
             self._config['images'] = {'White_Point': '4095',
                                       'Scaling': '3.45'}
             self._config['advanced'] = {'Masking_Method': 'Thresholding',
@@ -92,3 +101,8 @@ class Config:
         if section not in self._config:
             return
         self._config.set(section, option, str(value))
+
+    def create_image(self, img_path: Path) -> TiffImage | CziImage:
+        if self.image_format == 'CZI':
+            return CziImage(img_path, self)
+        return TiffImage(img_path, self)

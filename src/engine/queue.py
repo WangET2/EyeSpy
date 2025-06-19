@@ -1,10 +1,9 @@
-from pathlib import Path
 import os
 from collections import deque
 from abc import ABC, abstractmethod
 import numpy as np
-import czifile
-import time
+from ..engine.config import Config
+from ..images.image import BaseImage
 
 
 '''
@@ -17,12 +16,13 @@ class Node:
 '''
 
 class BaseQueue(ABC):
-    def __init__(self, directory: Path, *, enqueue_existing=False):
-        self._directory = directory
+    def __init__(self, config: Config):
+        self._config = config
+        self._directory = config.directory
         self._deque = deque()
         self._seen = set()
-        for val in os.listdir(directory):
-            if enqueue_existing:
+        for val in os.listdir(self._directory):
+            if config.enqueue_existing:
                 self.enqueue(val)
             else:
                 self._seen.add(val)
@@ -44,7 +44,7 @@ class BaseQueue(ABC):
         pass
 
     @abstractmethod
-    def front(self) -> np.ndarray | None:
+    def front(self) -> BaseImage | None:
         pass
 
 class FileQueue(BaseQueue):
@@ -54,12 +54,12 @@ class FileQueue(BaseQueue):
         self._deque.append(val)
         self._seen.add(val)
 
-    def front(self) -> np.ndarray | None:
+    def front(self) -> BaseImage | None:
         while not self.is_empty():
             imgpath = self._directory / self._deque[0]
-            imgarr = stable_read(imgpath)
-            if imgarr:
-                return imgarr
+            image = self._config.create_image(imgpath)
+            if image.array:
+                return image
             self.dequeue()
         return None
 
@@ -68,34 +68,10 @@ class ImageQueue(BaseQueue):
         if val in self._seen:
             return
         imgpath = self._directory / val
-        imgarr = stable_read(imgpath)
-        if imgarr:
-            self._deque.append(imgarr)
+        image = self._config.create_image(imgpath)
+        if image.array:
+            self._deque.append(image)
             self._seen.add(val)
 
-    def front(self) -> np.ndarray | None:
+    def front(self) -> BaseImage | None:
         return self._deque[0] if not self.is_empty() else None
-
-def stable_read(img_path: Path, max_attempts: int=10, delay_s:float=0.2, required_stable:int=3) -> np.ndarray | None:
-    attempts = 0
-    stable_count = 0
-    try:
-        while attempts <= max_attempts:
-            if not img_path.exists():
-                return None
-            initial_size = img_path.stat().st_size
-            time.sleep(delay_s)
-            current_size = img_path.stat().st_size
-            if initial_size == current_size and current_size > 0:
-                stable_count += 1
-            else:
-                stable_count = 0
-            if stable_count >= required_stable:
-                break
-            attempts += 1
-        if attempts > max_attempts:
-            return None
-        return czifile.imread(img_path)
-    except FileNotFoundError:
-        print(f"Error accessing file: {img_path} no longer exists or cannot be accessed.")
-    return None
