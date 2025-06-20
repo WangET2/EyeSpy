@@ -6,7 +6,7 @@ import czifile
 import tifffile as tf
 from typing import Callable
 import time
-from ..engine.config import Config
+from src.engine.config import Config
 
 class BaseImage(ABC):
     def __init__(self, full_path: Path, reader: Callable, config: Config):

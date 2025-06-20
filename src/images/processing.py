@@ -1,64 +1,81 @@
-# TODO
-# Move processing logic from filehandler.py
-# Generate statistically sound decision boundary for thresholding
-# Test/optimize
 import numpy as np
 import cv2 as cv
-from src.images.flyimage import FlyImage, CziFlyImage
+from src.images.image import BaseImage
+from src.engine.config import Config
 import math
+from functools import partial
+from collections import namedtuple
+
+Circle = namedtuple('Circle', ['center_y', 'center_x', 'radius'])
 
 class Processor:
-    pass
+    def __init__(self, config: Config):
+        self._config = config
+        self._normalizer = None
+        if self._config.normalization:
+            self._normalizer = partial(normalize, percentile=self._config.normalization_percentile)
+        self._masker = partial(threshold_image, threshold=self._config.threshold_level)
+        if self._config.masking_method == 'K-means':
+            self._masker = kmeans
+        self._fitter = partial(circle_params_contour, max_radius = self._config.max_radius)
+        if self._config.radius_method == 'Eigenvalue':
+            self._fitter = partial(circle_params_eigenvalue, max_radius = self._config.max_radius)
 
-def get_contour(image: FlyImage|CziFlyImage, threshold1: float, threshold2: float) -> np.ndarray:
-    processed_array = np.copy(image.array)
 
-    #Scaling each value in the array proportionally to its 95th percentile of brightness
-    processed_array = _proportional_scale(processed_array, image.white_point)
+    def circular_mean_fluorescence(self, img: BaseImage):
+        processed_img = np.copy(img.array)
+        if self._normalizer:
+            processed_img = self._normalizer(img)
+        processed_img = self._masker(processed_img)
 
-    #Apply thresholding to the array
-    processed_array = np.where(processed_array > threshold1,1, 0)
+        processed_img = cv.normalize(processed_img, dst = None, alpha = 0, beta = 255,
+                                       norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
+        processed_img = cv.morphologyEx(processed_img, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        processed_img = cv.morphologyEx(processed_img, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        params = self._fitter(processed_img, img.scaling)
+        return mean_intensity(img.array, params)
 
-    #High data precision is no longer necessary; reduce bit depth of the array for OpenCV compatability
-    processed_array = cv.normalize(processed_array, dst=None, alpha=0, beta=255,
-                                   norm_type=cv.NORM_MINMAX, dtype= cv.CV_8U)
 
-    #Morphological Operations account for potential noise in the binary mask
-    processed_array = cv.morphologyEx(processed_array, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    processed_array = cv.morphologyEx(processed_array, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
-    #The distance transform allows us to weight pixels relative to other 'on' pixels.
-    processed_array = cv.distanceTransform(processed_array, cv.DIST_L2, 5)
+def normalize( img: BaseImage, percentile: float) -> np.ndarray:
+    ubound = np.percentile(img.array, percentile)
+    return np.clip(img.array * (img.white_point / ubound), None, ubound)
 
-    #Thresholding is applied, again. This allows us to filter low-connectivity regions of the image.
-    processed_array = np.where(processed_array > threshold2, 1, 0)
+def kmeans(img_array: np.ndarray) -> np.ndarray:
+    flattened = np.float32(img_array.flatten())
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    ret, label, center = cv.kmeans(flattened, 2, None, criteria, 15, cv.KMEANS_RANDOM_CENTERS)
+    return center[label.flatten()].reshape(img_array.shape)
 
-    processed_array = cv.normalize(processed_array, dst = None, alpha = 0, beta = 255,
-                                   norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
-    #Morphological operations, for the same reasons as above.
-    processed_array = cv.morphologyEx(processed_array, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    processed_array = cv.morphologyEx(processed_array, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+def threshold_image(img_array: np.ndarray, threshold: int) -> np.ndarray:
+    return np.where(img_array > threshold, 1, 0)
 
-    contours, hierarchy = cv.findContours(processed_array, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+def circle_params_contour(img_array: np.ndarray, img_scaling: float, max_radius: int) -> Circle:
+    #Distance Transform
+    img_array = cv.distanceTransform(img_array, cv.DIST_L2, 5)
+    img_array = np.where(img_array > 80, 1, 0)
+    img_array = cv.normalize(img_array, dst = None, alpha = 0, beta = 255,
+                                 norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
+    img_array = cv.morphologyEx(img_array, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    img_array = cv.morphologyEx(img_array, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
-    try:
-        return max(contours, key=cv.contourArea)
-    except:
-        raise ValueError(f'Image too dark!')
+    #Contour Fitting
+    contours, _ = cv.findContours(img_array, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+    eye = max(contours, key=cv.contourArea)
 
-def get_mean_circular(image: FlyImage|CziFlyImage, contour: np.ndarray, *, write_mode=False) -> float:
-    ellipse = cv.fitEllipse(contour)
-    cx, cy = ellipse[0]
+    #Ellipse Fitting (calculate center)
+    ellipse = cv.fitEllipse(eye)
+    center_x, center_y = ellipse[0]
     major, minor = ellipse[1]
     theta = math.radians(ellipse[2])
 
+    #Calculate Radius
     while theta > 2 * math.pi:
         theta = theta - (2 * math.pi)
     while theta < 0:
         theta = theta + (2 * math.pi)
     if theta > math.pi:
         theta = theta - math.pi
-
     if theta <= (math.pi/2):
         y_radius = (major / 2) * math.sin(theta)
         x_radius = (major / 2) * math.cos(theta)
@@ -67,30 +84,40 @@ def get_mean_circular(image: FlyImage|CziFlyImage, contour: np.ndarray, *, write
         y_radius = (major / 2) * math.sin(theta)
         x_radius = (major / 2) * math.cos(theta)
 
-    y_shape, x_shape = image.array.shape
-    if cy + y_radius > (y_shape - 1):
-        y_radius = (y_shape - 1) - cy
-    if cx + x_radius > (x_shape - 1):
-        x_radius = (x_shape - 1) - cx
-    if cy - y_radius < 0:
-        y_radius = cy
-    if cx - x_radius < 0:
-        x_radius = cx
-    radius = min(y_radius, x_radius, image.scaling)
-    rad_squared = pow(radius, 2)
-    intensity_sum, count = (0, 0)
-    for i in range(image.array.shape[0]):
-        y_radius_squared = (i - cy) ** 2
-        if y_radius_squared < rad_squared:
-            x_roi = np.where((np.arange(image.array.shape[1]) - cx) ** 2 + y_radius_squared < rad_squared)[0]
-            intensity_sum += image.array[i, x_roi].sum()
-            count += len(x_roi)
-    return 0 if count == 0 else round(float(intensity_sum / count), 3)
+    #Radius verification
+    y_shape, x_shape = img_array.shape
+    if center_y + y_radius > (y_shape - 1):
+        y_radius = (y_shape - 1) - center_y
+    if center_x + x_radius > (x_shape - 1):
+        x_radius = (x_shape - 1) - center_x
+    if center_y - y_radius < 0:
+        y_radius = center_y
+    if center_x - x_radius < 0:
+        x_radius = center_x
+    radius = min(y_radius, x_radius, max_radius // img_scaling)
+    return Circle(center_y, center_x, radius)
 
+def circle_params_eigenvalue(img_array: np.ndarray, img_scaling: float, max_radius: int) -> Circle:
+    y_coords, x_coords = np.where(img_array > 0)
+    #Estimate center with median
+    center_y = np.partition(y_coords, y_coords.size // 2)[y_coords.size // 2]
+    center_x = np.partition(x_coords, x_coords.size // 2)[x_coords.size // 2]
 
+    #Recenter data to (0,0)
+    recentered_y = y_coords - center_y
+    recentered_x = x_coords - center_x
 
-def _proportional_scale(arr: np.ndarray, white_point: int) -> np.ndarray:
-    """Scales the image proportionally to the 95th percentile
-    of pixel brightness in the image array."""
-    ubound = np.percentile(arr, 95)
-    return np.clip(arr * (white_point / ubound), None, ubound)
+    #Covariance matrix and eigenvalues to estimate radius
+    covar_matrix = np.cov(np.vstack((recentered_y, recentered_x)))
+    eigenvalues = np.linalg.eigvals(covar_matrix)
+    min_eigenvalue = min(eigenvalues[0], eigenvalues[1])
+    est_radius =  2 * math.sqrt(min_eigenvalue)
+    radius = min(est_radius, max_radius // img_scaling)
+    return Circle(center_y, center_x, radius)
+
+def mean_intensity(img_array: np.ndarray, roi: Circle):
+    y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
+    dist_squared = (y_coords - roi.center_y) ** 2 + (x_coords - roi.center_x) ** 2
+    mask = dist_squared <= roi.radius ** 2
+    selected_pixels = img_array[mask]
+    return np.mean(selected_pixels) if selected_pixels.size != 0 else 0.0

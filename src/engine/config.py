@@ -1,11 +1,6 @@
-# TODO
-# Add proper config file handling
-# Interface with gui.config_gui
-
 from configparser import ConfigParser
 from pathlib import Path
-
-from ..images.image import TiffImage, CziImage
+from src.images.image import TiffImage, CziImage
 
 
 class Config:
@@ -72,6 +67,9 @@ class Config:
     def max_checks(self) -> int:
         return self._config.getint('advanced', 'Max_Checks', fallback=10)
 
+    @property
+    def max_radius(self) -> int:
+        return self._config.getint('advanced', 'Max_Radius', fallback=2500)
         
 
 
@@ -90,7 +88,8 @@ class Config:
                                         'Radius_Method': 'Contour',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
-                                        'Max_Checks': '10'}
+                                        'Max_Checks': '10',
+                                        'Max_Radius': '2500'}
             self._config.write(config_file)
 
     def save(self) -> None:

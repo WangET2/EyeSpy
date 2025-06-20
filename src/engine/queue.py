@@ -1,9 +1,8 @@
 import os
 from collections import deque
 from abc import ABC, abstractmethod
-import numpy as np
-from ..engine.config import Config
-from ..images.image import BaseImage
+from src.engine.config import Config
+from src.images.image import BaseImage
 
 
 '''
@@ -16,13 +15,13 @@ class Node:
 '''
 
 class BaseQueue(ABC):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, *, enqueue_existing: bool = False):
         self._config = config
         self._directory = config.directory
         self._deque = deque()
         self._seen = set()
         for val in os.listdir(self._directory):
-            if config.enqueue_existing:
+            if config.enqueue_existing | enqueue_existing:
                 self.enqueue(val)
             else:
                 self._seen.add(val)
