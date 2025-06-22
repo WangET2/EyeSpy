@@ -2,7 +2,7 @@ import os
 from collections import deque
 from abc import ABC, abstractmethod
 from src.engine.config import Config
-from src.images.image import BaseImage
+from src.images.image import BaseImage, create_image_from_config
 
 
 '''
@@ -56,8 +56,8 @@ class FileQueue(BaseQueue):
     def front(self) -> BaseImage | None:
         while not self.is_empty():
             imgpath = self._directory / self._deque[0]
-            image = self._config.create_image(imgpath)
-            if image.array:
+            image = create_image_from_config(self._config, imgpath)
+            if image.array is not None:
                 return image
             self.dequeue()
         return None
@@ -67,10 +67,15 @@ class ImageQueue(BaseQueue):
         if val in self._seen:
             return
         imgpath = self._directory / val
-        image = self._config.create_image(imgpath)
-        if image.array:
+        image = create_image_from_config(self._config, imgpath)
+        if image.array is not None:
             self._deque.append(image)
             self._seen.add(val)
 
     def front(self) -> BaseImage | None:
         return self._deque[0] if not self.is_empty() else None
+
+def create_queue_from_config(config: Config, *, enqueue_existing = False):
+    if config.queue_type == 'Image':
+        return ImageQueue(config, enqueue_existing=enqueue_existing)
+    return FileQueue(config, enqueue_existing=enqueue_existing)

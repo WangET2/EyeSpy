@@ -1,7 +1,5 @@
 from configparser import ConfigParser
 from pathlib import Path
-from src.images.image import TiffImage, CziImage
-
 
 class Config:
     def __init__(self):
@@ -101,7 +99,3 @@ class Config:
             return
         self._config.set(section, option, str(value))
 
-    def create_image(self, img_path: Path) -> TiffImage | CziImage:
-        if self.image_format == 'CZI':
-            return CziImage(img_path, self)
-        return TiffImage(img_path, self)
