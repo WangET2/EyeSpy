@@ -18,12 +18,12 @@ class Config:
         return self._config.get('files', 'Queue_Type', fallback='File')
 
     @property
-    def image_format(self) -> str:
-        return self._config.get('files','Image_Format',fallback='CZI')
-
-    @property
     def enqueue_existing(self) -> bool:
         return self._config.getboolean('files','Enqueue_Existing', fallback=False)
+
+    @property
+    def image_format(self) -> str:
+        return self._config.get('images','Image_Format',fallback='CZI')
 
     @property
     def white_point(self) -> int:
@@ -32,6 +32,10 @@ class Config:
     @property
     def scaling(self) -> float:
         return self._config.getfloat('images', 'Scaling', fallback=3.45)
+
+    @property
+    def max_radius(self) -> int:
+        return self._config.getint('images', 'Max_Radius', fallback = 2500)
 
     @property
     def masking_method(self) -> str:
@@ -65,20 +69,15 @@ class Config:
     def max_checks(self) -> int:
         return self._config.getint('advanced', 'Max_Checks', fallback=10)
 
-    @property
-    def max_radius(self) -> int:
-        return self._config.getint('advanced', 'Max_Radius', fallback=2500)
-        
-
-
     def _create_default(self):
         with open('options.ini', 'w') as config_file:
             self._config['files'] = {'Directory': 'None',
                                      'Queue_Type': 'File',
-                                     'Image_Format': 'CZI',
                                      'Enqueue_Existing': 'False'}
-            self._config['images'] = {'White_Point': '4095',
-                                      'Scaling': '3.45'}
+            self._config['images'] = {'Image_Format': 'CZI',
+                                        'White_Point': '4095',
+                                        'Scaling': '3.45',
+                                        'Max_Radius': '2500'}
             self._config['advanced'] = {'Masking_Method': 'Thresholding',
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '95.0',
@@ -86,8 +85,7 @@ class Config:
                                         'Radius_Method': 'Contour',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
-                                        'Max_Checks': '10',
-                                        'Max_Radius': '2500'}
+                                        'Max_Checks': '10'}
             self._config.write(config_file)
 
     def save(self) -> None:

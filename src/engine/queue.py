@@ -20,11 +20,12 @@ class BaseQueue(ABC):
         self._directory = config.directory
         self._deque = deque()
         self._seen = set()
-        for val in os.listdir(self._directory):
-            if config.enqueue_existing | enqueue_existing:
-                self.enqueue(val)
-            else:
-                self._seen.add(val)
+        for val in self._directory.iterdir():
+            if val.is_file() and val.suffix.lower() == f'.{self._config.image_format}'.lower():
+                if config.enqueue_existing | enqueue_existing:
+                    self.enqueue(val)
+                else:
+                    self._seen.add(val)
 
     def is_empty(self) -> bool:
         return not self._deque
@@ -35,7 +36,7 @@ class BaseQueue(ABC):
 
     def update(self) -> None:
         for val in self._directory.iterdir():
-            if val.is_file():
+            if val.is_file() and val.suffix.lower() == f'.{self._config.image_format}'.lower():
                 self.enqueue(val.name)
 
     @abstractmethod
