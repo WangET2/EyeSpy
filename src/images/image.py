@@ -10,7 +10,11 @@ from src.engine.config import Config
 
 class BaseImage(ABC):
     def __init__(self, full_path: Path, reader: Callable, config: Config):
+        self._name = full_path.stem
         self._array = stable_read(full_path, reader, config.max_checks, config.check_delay, config.required_stable)
+
+    def __repr__(self):
+        return self._name
 
     @property
     def array(self) -> np.ndarray:
@@ -88,3 +92,8 @@ def stable_read(img_path: Path, reader: Callable, max_attempts: int, delay_s: fl
     except FileNotFoundError:
         print(f"Error accessing file: {img_path} no longer exists or cannot be accessed.")
     return None
+
+def create_image_from_config(config: Config, img_path: Path) -> BaseImage:
+    if config.image_format == 'CZI':
+        return CziImage(img_path, config)
+    return TiffImage(img_path, config)

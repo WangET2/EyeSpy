@@ -115,7 +115,7 @@ def circle_params_eigenvalue(img_array: np.ndarray, img_scaling: float, max_radi
     radius = min(est_radius, max_radius // img_scaling)
     return Circle(center_y, center_x, radius)
 
-def mean_intensity(img_array: np.ndarray, roi: Circle):
+def mean_intensity(img_array: np.ndarray, roi: Circle) -> float:
     y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
     dist_squared = (y_coords - roi.center_y) ** 2 + (x_coords - roi.center_x) ** 2
     mask = dist_squared <= roi.radius ** 2
