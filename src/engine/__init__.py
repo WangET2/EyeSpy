@@ -1,1 +1,1 @@
-import src.engine.queue
+import src.engine.images_queue
