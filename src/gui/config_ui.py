@@ -189,7 +189,7 @@ class Ui_ConfigWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
         self.scrollAreaWidgetContents = QtWidgets.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 548, 275))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, -144, 548, 275))
         self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
         self.gridLayout_9 = QtWidgets.QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout_9.setObjectName("gridLayout_9")
@@ -264,7 +264,7 @@ class Ui_ConfigWindow(object):
         ConfigWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(ConfigWindow)
-        self.config_tabs.setCurrentIndex(2)
+        self.config_tabs.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(ConfigWindow)
 
     def retranslateUi(self, ConfigWindow):
