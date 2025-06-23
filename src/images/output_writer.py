@@ -18,6 +18,7 @@ class OutputWriter:
 
     def write_row(self, data: list):
         self._writer.writerow(data)
+        self._file.flush()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._file.close()
