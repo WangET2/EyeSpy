@@ -39,35 +39,35 @@ class Config:
 
     @property
     def masking_method(self) -> str:
-        return self._config.get('advanced', 'Masking_Method', fallback='Thresholding')
+        return self._config.get('processing', 'Masking_Method', fallback='Thresholding')
 
     @property
     def normalization(self) -> bool:
-        return self._config.getboolean('advanced', 'Normalization', fallback=True)
+        return self._config.getboolean('processing', 'Normalization', fallback=True)
 
     @property
     def normalization_percentile(self) -> float:
-        return self._config.getfloat('advanced', 'Normalization_Percentile', fallback=95.0)
+        return self._config.getfloat('processing', 'Normalization_Percentile', fallback=95.0)
 
     @property
     def threshold_level(self) -> int:
-        return self._config.getint('advanced', 'Threshold_Level', fallback=100)
+        return self._config.getint('processing', 'Threshold_Level', fallback=100)
 
     @property
     def radius_method(self) -> str:
-        return self._config.get('advanced', 'Radius_Method', fallback='Contour')
+        return self._config.get('processing', 'Radius_Method', fallback='Contour')
 
     @property
     def required_stable(self) -> int:
-        return self._config.getint('advanced', 'Required_Stable', fallback=3)
+        return self._config.getint('processing', 'Required_Stable', fallback=3)
 
     @property
     def check_delay(self) -> float:
-        return self._config.getfloat('advanced', 'Check_Delay', fallback=0.2)
+        return self._config.getfloat('processing', 'Check_Delay', fallback=0.2)
 
     @property
     def max_checks(self) -> int:
-        return self._config.getint('advanced', 'Max_Checks', fallback=10)
+        return self._config.getint('processing', 'Max_Checks', fallback=10)
 
     def _create_default(self):
         with open('options.ini', 'w') as config_file:
@@ -78,7 +78,7 @@ class Config:
                                         'White_Point': '4095',
                                         'Scaling': '3.45',
                                         'Max_Radius': '2500'}
-            self._config['advanced'] = {'Masking_Method': 'Thresholding',
+            self._config['processing'] = {'Masking_Method': 'Thresholding',
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '95.0',
                                         'Threshold_Level': '100',
