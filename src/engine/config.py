@@ -97,3 +97,5 @@ class Config:
             return
         self._config.set(section, option, str(value))
 
+    def reset(self):
+        self._create_default()
