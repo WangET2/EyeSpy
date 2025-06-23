@@ -97,5 +97,24 @@ class Config:
             return
         self._config.set(section, option, str(value))
 
-    def reset(self):
+    def reset(self) -> None:
         self._create_default()
+
+    def validate(self) -> None:
+        if not self._config.get('images', 'White_Point').isdigit():
+            raise ValueError('Image White Point must be an integer value.')
+        if not self._config.get('images', 'Scaling').replace('.','',1).isdigit():
+            raise ValueError('Image Scaling must be a numeric value.')
+        if not self._config.get('images', 'Max_Radius').isdigit():
+            raise ValueError('Maximum ROI Radius must be an integer value.')
+        if not self._config.get('processing', 'Normalization_Percentile').replace('.','',1).isdigit():
+            raise ValueError('Normalization Percentile must be a numeric value.')
+        if not self._config.get('processing','Threshold_Level').isdigit():
+            raise ValueError('Threshold Intensity must be an integer value.')
+        if not self._config.get('processing', 'Required_Stable').isdigit():
+            raise ValueError('Stability Checks must be an integer value.')
+        if not self._config.get('processing', 'Check_Delay').replace('.','',1).isdigit():
+            raise ValueError('Delay Between Stability Checks must be a numeric value.')
+        if not self._config.get('processing', 'Max_Checks').isdigit():
+            raise ValueError('Maximum Stability Checks must be an integer value.')
+            
