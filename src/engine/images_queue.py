@@ -22,7 +22,7 @@ class BaseQueue(ABC):
         self._seen = set()
         for val in self._directory.iterdir():
             if val.is_file() and val.suffix.lower() == f'.{self._config.image_format}'.lower():
-                if config.enqueue_existing | enqueue_existing:
+                if config.enqueue_existing or enqueue_existing:
                     self.enqueue(val)
                 else:
                     self._seen.add(val)
@@ -37,7 +37,7 @@ class BaseQueue(ABC):
     def update(self) -> None:
         for val in self._directory.iterdir():
             if val.is_file() and val.suffix.lower() == f'.{self._config.image_format}'.lower():
-                self.enqueue(val.name)
+                self.enqueue(val)
 
     @abstractmethod
     def enqueue(self, val: str) -> None:
@@ -76,7 +76,7 @@ class ImageQueue(BaseQueue):
     def front(self) -> BaseImage | None:
         return self._deque[0] if not self.is_empty() else None
 
-def create_queue_from_config(config: Config, *, enqueue_existing = False):
+def create_queue_from_config(config: Config):
     if config.queue_type == 'Image':
-        return ImageQueue(config, enqueue_existing=enqueue_existing)
-    return FileQueue(config, enqueue_existing=enqueue_existing)
+        return ImageQueue(config)
+    return FileQueue(config)
