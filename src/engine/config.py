@@ -47,11 +47,11 @@ class Config:
 
     @property
     def normalization_percentile(self) -> float:
-        return self._config.getfloat('processing', 'Normalization_Percentile', fallback=95.0)
+        return self._config.getfloat('processing', 'Normalization_Percentile', fallback=99.5)
 
     @property
     def threshold_level(self) -> int:
-        return self._config.getint('processing', 'Threshold_Level', fallback=100)
+        return self._config.getint('processing', 'Threshold_Level', fallback=1526)
 
     @property
     def radius_method(self) -> str:
@@ -80,8 +80,8 @@ class Config:
                                         'Max_Radius': '2500'}
             self._config['processing'] = {'Masking_Method': 'Thresholding',
                                         'Normalization': 'True',
-                                        'Normalization_Percentile': '95.0',
-                                        'Threshold_Level': '100',
+                                        'Normalization_Percentile': '99.5',
+                                        'Threshold_Level': '1526',
                                         'Radius_Method': 'Contour',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
