@@ -44,7 +44,6 @@ class Worker(QObject):
                         self.output.emit(f'{current_image}: {result:.3f}')
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
-        self.finished.emit()
 
     def _live_process(self) -> None:
         queue = create_queue_from_config(self._config)
