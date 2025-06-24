@@ -39,7 +39,7 @@ class Processor:
 
 def normalize( img: BaseImage, percentile: float) -> np.ndarray:
     ubound = np.percentile(img.array, percentile)
-    return np.clip(img.array * (img.white_point / ubound), None, ubound)
+    return np.clip(img.array * (img.white_point / ubound), None, img.white_point)
 
 def kmeans(img_array: np.ndarray) -> np.ndarray:
     flattened = np.float32(img_array.flatten())
