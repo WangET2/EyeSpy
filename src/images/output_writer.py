@@ -1,8 +1,11 @@
 import csv
 from datetime import datetime
 from pathlib import Path
+import numpy as np
+import tifffile as tf
+import os
 
-class OutputWriter:
+class CSVWriter:
     def __init__(self, direc: Path, header: list[str]):
         name = self._create_name()
         self._header = header
@@ -26,3 +29,20 @@ class OutputWriter:
     def _create_name(self):
         current_time = datetime.now()
         return current_time.strftime('%m%d%y_%H%M%S')
+
+class TiffWriter:
+    def __init__(self, direc: Path):
+        self._direc = direc / Path('roi_drawn')
+        if not os.path.exists(self._direc):
+            os.mkdir(self._direc)
+
+
+    def write_roi(self, img_array: np.ndarray, filename: str, center_y: int, center_x, radius: int) -> None:
+        img_array = np.copy(img_array)
+        y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
+        dist_squared = (y_coords - center_y) ** 2 + (x_coords - center_x) ** 2
+        inner = dist_squared < radius ** 2
+        outline = dist_squared == radius ** 2
+        img_array[inner] = 0
+        img_array[outline] = 255
+        tf.imwrite(self._direc / Path(filename + '.tiff'), img_array)

@@ -1,5 +1,6 @@
 import numpy as np
 import cv2 as cv
+from src.images.output_writer import TiffWriter
 from src.images.image import BaseImage
 from src.engine.config import Config
 import math
@@ -15,11 +16,14 @@ class Processor:
         if self._config.normalization:
             self._normalizer = partial(normalize, percentile=self._config.normalization_percentile)
         self._masker = partial(threshold_image, threshold=self._config.threshold_level)
-        if self._config.masking_method == 'K-means':
+        if self._config.masking_method == 'K-Means':
             self._masker = kmeans
         self._fitter = partial(circle_params_contour, max_radius = self._config.max_radius)
         if self._config.radius_method == 'Eigenvalue':
             self._fitter = partial(circle_params_eigenvalue, max_radius = self._config.max_radius)
+        self._writer = None
+        if self._config.write_roi:
+            self._writer = TiffWriter(self._config.directory)
 
 
     def circular_mean_fluorescence(self, img: BaseImage):
@@ -33,11 +37,13 @@ class Processor:
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
         params = self._fitter(processed_img, img.scaling)
+        if self._writer is not None:
+            self._writer.write_roi(img.array, str(img), *params)
         return mean_intensity(img.array, params)
 
 
 
-def normalize( img: BaseImage, percentile: float) -> np.ndarray:
+def normalize(img: BaseImage, percentile: float) -> np.ndarray:
     ubound = np.percentile(img.array, percentile)
     return np.clip(img.array * (img.white_point / ubound), None, img.white_point)
 
@@ -53,7 +59,7 @@ def threshold_image(img_array: np.ndarray, threshold: int) -> np.ndarray:
 def circle_params_contour(img_array: np.ndarray, img_scaling: float, max_radius: int) -> Circle:
     #Distance Transform
     img_array = cv.distanceTransform(img_array, cv.DIST_L2, 5)
-    img_array = np.where(img_array > 80, 1, 0)
+    img_array = np.where(img_array > 7, 1, 0)
     img_array = cv.normalize(img_array, dst = None, alpha = 0, beta = 255,
                                  norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
     img_array = cv.morphologyEx(img_array, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
@@ -70,31 +76,7 @@ def circle_params_contour(img_array: np.ndarray, img_scaling: float, max_radius:
     theta = math.radians(ellipse[2])
 
     #Calculate Radius
-    while theta > 2 * math.pi:
-        theta = theta - (2 * math.pi)
-    while theta < 0:
-        theta = theta + (2 * math.pi)
-    if theta > math.pi:
-        theta = theta - math.pi
-    if theta <= (math.pi/2):
-        y_radius = (major / 2) * math.sin(theta)
-        x_radius = (major / 2) * math.cos(theta)
-    elif (math.pi/2) < theta <= math.pi:
-        theta = math.pi - theta
-        y_radius = (major / 2) * math.sin(theta)
-        x_radius = (major / 2) * math.cos(theta)
-
-    #Radius verification
-    y_shape, x_shape = img_array.shape
-    if center_y + y_radius > (y_shape - 1):
-        y_radius = (y_shape - 1) - center_y
-    if center_x + x_radius > (x_shape - 1):
-        x_radius = (x_shape - 1) - center_x
-    if center_y - y_radius < 0:
-        y_radius = center_y
-    if center_x - x_radius < 0:
-        x_radius = center_x
-    radius = min(y_radius, x_radius, max_radius // img_scaling)
+    radius = min(minor // 2, max_radius // img_scaling)
     return Circle(center_y, center_x, radius)
 
 def circle_params_eigenvalue(img_array: np.ndarray, img_scaling: float, max_radius: int) -> Circle:

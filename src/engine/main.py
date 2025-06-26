@@ -6,7 +6,7 @@ from src.gui.main_menu import Ui_MainWindow
 from src.gui.config_ui import Ui_ConfigWindow
 from src.gui.processing_ui import Ui_ProcessingWindow
 from src.engine.config import Config
-from src.images.output_writer import OutputWriter
+from src.images.output_writer import CSVWriter
 from src.images.processing import Processor
 from src.engine.images_queue import create_queue_from_config, FileQueue
 
@@ -33,7 +33,7 @@ class Worker(QObject):
     def _batch_process(self) -> None:
         queue = FileQueue(self._config, enqueue_existing=True)
         processor = Processor(self._config)
-        with OutputWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
             while not queue.is_empty() and not self._stopped:
                 current_image = queue.front()
                 if current_image is not None:
@@ -48,7 +48,7 @@ class Worker(QObject):
     def _live_process(self) -> None:
         queue = create_queue_from_config(self._config)
         processor = Processor(self._config)
-        with OutputWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
             while not self._stopped:
                 queue.update()
                 current_image = queue.front()
@@ -94,7 +94,8 @@ class ConfigWindow(QMainWindow):
                        self._ui.masking_dropdown, self._ui.extraction_dropdown]:
             widget.currentTextChanged.connect(self._enable_save)
 
-        for widget in [self._ui.enqueue_checkbox, self._ui.normalization_checkbox]:
+        for widget in [self._ui.enqueue_checkbox, self._ui.normalization_checkbox,
+                       self._ui.tiff_checkbox]:
             widget.stateChanged.connect(self._enable_save)
 
     def _enable_save(self):
@@ -111,6 +112,7 @@ class ConfigWindow(QMainWindow):
         queue_index = 0 if self._config.queue_type.lower() == 'file' else 1
         self._ui.queue_dropdown.setCurrentIndex(queue_index)
         self._ui.enqueue_checkbox.setChecked(self._config.enqueue_existing)
+        self._ui.tiff_checkbox.setChecked(self._config.write_roi)
 
         format_index = 0 if self._config.image_format.lower() == 'czi' else 1
         self._ui.format_dropdown.setCurrentIndex(format_index)
@@ -153,6 +155,7 @@ class ConfigWindow(QMainWindow):
             queue_type = 'File' if self._ui.queue_dropdown.currentIndex() == 0 else 'Image'
             self._config.set('files', 'Queue_Type', queue_type)
             self._config.set('files', 'Enqueue_Existing', self._ui.enqueue_checkbox.isChecked())
+            self._config.set('files', 'Write_ROI', self._ui.tiff_checkbox.isChecked())
 
             image_format = 'CZI' if self._ui.format_dropdown.currentIndex() == 0 else 'TIFF'
             self._config.set('images', 'Image_Format', image_format)

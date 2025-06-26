@@ -22,6 +22,10 @@ class Config:
         return self._config.getboolean('files','Enqueue_Existing', fallback=False)
 
     @property
+    def write_roi(self) -> bool:
+        return self._config.getboolean('files', 'Write_ROI', fallback=False)
+
+    @property
     def image_format(self) -> str:
         return self._config.get('images','Image_Format',fallback='CZI')
 
@@ -73,7 +77,8 @@ class Config:
         with open('options.ini', 'w') as config_file:
             self._config['files'] = {'Directory': 'None',
                                      'Queue_Type': 'File',
-                                     'Enqueue_Existing': 'False'}
+                                     'Enqueue_Existing': 'False',
+                                     'Write_ROI': 'False'}
             self._config['images'] = {'Image_Format': 'CZI',
                                         'White_Point': '4095',
                                         'Scaling': '3.45',
@@ -82,7 +87,7 @@ class Config:
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '99.5',
                                         'Threshold_Level': '1526',
-                                        'Radius_Method': 'Contour',
+                                        'Radius_Method': 'Eigenvalue',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
                                         'Max_Checks': '10'}
