@@ -73,6 +73,16 @@ class Config:
     def max_checks(self) -> int:
         return self._config.getint('processing', 'Max_Checks', fallback=10)
 
+    @property
+    def training_directory(self) -> Path:
+        to_return = self._config.get('bayesian', 'Training_Directory', fallback='None')
+        return Path(to_return) if to_return.lower() != 'none' else None
+
+    @property
+    def testing_directory(self) -> Path:
+        to_return = self._config.get('bayesian', 'Testing_Directory', fallback = 'None')
+        return Path(to_return) if to_return.lower() != 'none' else None
+
     def _create_default(self):
         with open('options.ini', 'w') as config_file:
             self._config['files'] = {'Directory': 'None',
@@ -91,6 +101,8 @@ class Config:
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
                                         'Max_Checks': '10'}
+            self._config['bayesian'] = {'Training_Directory': 'None',
+                                        'Testing_Directory': 'None'}
             self._config.write(config_file)
 
     def save(self) -> None:
