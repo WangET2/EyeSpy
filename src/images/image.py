@@ -6,12 +6,11 @@ import czifile
 import tifffile as tf
 from typing import Callable
 import time
-from src.engine.config import Config
 
 class BaseImage(ABC):
-    def __init__(self, full_path: Path, reader: Callable, config: Config):
+    def __init__(self, full_path: Path, reader: Callable):
         self._name = full_path.stem
-        self._array = stable_read(full_path, reader, config.max_checks, config.check_delay, config.required_stable)
+        self._array = reader(full_path)
 
     def __repr__(self):
         return self._name
@@ -31,10 +30,10 @@ class BaseImage(ABC):
         raise NotImplementedError
 
 class TiffImage(BaseImage):
-    def __init__(self, full_path: Path, config: Config):
-        super().__init__(full_path, tf.imread, config)
-        self._scaling = config.scaling
-        self._white_point = config.white_point
+    def __init__(self, full_path: Path, scaling: float, white_point: int, *, reader: Callable=tf.imread):
+        super().__init__(full_path, reader)
+        self._scaling = scaling
+        self._white_point = white_point
 
     @property
     def scaling(self) -> float:
@@ -45,8 +44,8 @@ class TiffImage(BaseImage):
         return self._white_point
 
 class CziImage(BaseImage):
-    def __init__(self, full_path: Path, config: Config):
-        super().__init__(full_path, czifile.imread, config)
+    def __init__(self, full_path: Path, *, reader:Callable=czifile.imread):
+        super().__init__(full_path, reader)
         img = czifile.CziFile(full_path)
         try:
             metadata = img.metadata()
@@ -92,8 +91,3 @@ def stable_read(img_path: Path, reader: Callable, max_attempts: int, delay_s: fl
     except FileNotFoundError:
         print(f"Error accessing file: {img_path} no longer exists or cannot be accessed.")
     return None
-
-def create_image_from_config(config: Config, img_path: Path) -> BaseImage:
-    if config.image_format == 'CZI':
-        return CziImage(img_path, config)
-    return TiffImage(img_path, config)

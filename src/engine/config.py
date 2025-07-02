@@ -1,5 +1,12 @@
+from collections.abc import Callable
 from configparser import ConfigParser
 from pathlib import Path
+from functools import partial
+from src.images.image import BaseImage, TiffImage, CziImage, stable_read
+from src.engine.images_queue import BaseQueue, LazyQueue, EagerQueue
+from src.images.processing import Processor
+from czifile import imread as cziread
+from tifffile import imread as tiffread
 
 class Config:
     def __init__(self):
@@ -58,6 +65,10 @@ class Config:
         return self._config.getint('processing', 'Threshold_Level', fallback=1526)
 
     @property
+    def center_method(self) -> str:
+        return self._config.get('processing', 'Center_Method', fallback='Median')
+
+    @property
     def radius_method(self) -> str:
         return self._config.get('processing', 'Radius_Method', fallback='Contour')
 
@@ -97,6 +108,7 @@ class Config:
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '99.5',
                                         'Threshold_Level': '1526',
+                                        'Center_Method': 'Median',
                                         'Radius_Method': 'Eigenvalue',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
@@ -134,4 +146,24 @@ class Config:
             raise ValueError('Delay Between Stability Checks must be a numeric value.')
         if not self._config.get('processing', 'Max_Checks').isdigit():
             raise ValueError('Maximum Stability Checks must be an integer value.')
-            
+
+    def create_image(self, img_path: Path, reader: Callable) -> BaseImage:
+        if self.image_format == 'CZI':
+            return CziImage(img_path, reader=reader)
+        return TiffImage(img_path, scaling=self.scaling, white_point=self.white_point, reader=reader)
+
+    def create_queue(self, reader: Callable=None) -> BaseQueue:
+        if reader is None:
+            reader = self.stable_reader()
+        factory = partial(self.create_image, reader=reader)
+        queue_type = EagerQueue if self.queue_type == 'Image' else LazyQueue
+        return queue_type(self.directory, image_factory=factory, file_format=self.image_format, enqueue_existing=self.enqueue_existing)
+
+    def create_processor(self) -> Processor:
+        return Processor(normalization=self.normalization, normalization_percentile=self.normalization_percentile,
+                         masking_method=self.masking_method, threshold_level=self.threshold_level,
+                         radius_method=self.radius_method, max_radius=self.max_radius)
+
+    def stable_reader(self) -> Callable:
+        reader = cziread if self.image_format == 'CZI' else tiffread
+        return partial(stable_read, reader=reader, max_attempts=self.max_checks, delay_s=self.check_delay, required_stable=self.required_stable)

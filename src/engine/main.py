@@ -1,4 +1,6 @@
 import sys
+import os
+os.environ["QT_QPA_PLATFORM"] = "wayland"
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
@@ -6,11 +8,13 @@ from src.gui.main_menu import Ui_MainWindow
 from src.gui.config_ui import Ui_ConfigWindow
 from src.gui.processing_ui import Ui_ProcessingWindow
 from src.engine.config import Config
-from src.images.output_writer import CSVWriter
-from src.images.processing import Processor
-from src.engine.images_queue import create_queue_from_config, FileQueue
+from src.images.output_writer import CSVWriter, TiffWriter
+from src.engine.images_queue import LazyQueue
+from functools import partial
 
-class Worker(QObject):
+
+
+class ProcessingWorker(QObject):
     output = pyqtSignal(str)
     error = pyqtSignal(str)
     finished = pyqtSignal()
@@ -31,23 +35,24 @@ class Worker(QObject):
         self._stopped = True
 
     def _batch_process(self) -> None:
-        queue = FileQueue(self._config, enqueue_existing=True)
-        processor = Processor(self._config)
+        factory = partial(self._config.create_image, reader=self._config.stable_reader())
+        queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format, enqueue_existing=True)
+        processor = self._config.create_processor()
         with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
             while not queue.is_empty() and not self._stopped:
                 current_image = queue.front()
                 if current_image is not None:
                     try:
                         queue.dequeue()
-                        result = processor.circular_mean_fluorescence(current_image)
+                        result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
 
     def _live_process(self) -> None:
-        queue = create_queue_from_config(self._config)
-        processor = Processor(self._config)
+        queue = self._config.create_queue()
+        processor = self._config.create_processor()
         with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
             while not self._stopped:
                 queue.update()
@@ -55,7 +60,7 @@ class Worker(QObject):
                 if current_image is not None:
                     try:
                         queue.dequeue()
-                        result = processor.circular_mean_fluorescence(current_image)
+                        result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
                     except Exception as e:
@@ -210,7 +215,7 @@ class ProcessingWindow(QMainWindow):
         if self._processing_thread or self._worker:
             return
         self._processing_thread = QThread()
-        self._worker = Worker(self._config, live=self._live)
+        self._worker = ProcessingWorker(self._config, live=self._live)
         self._worker.moveToThread(self._processing_thread)
         self._processing_thread.started.connect(self._worker.run)
         self._worker.finished.connect(self._processing_thread.quit)

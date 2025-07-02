@@ -1,8 +1,5 @@
 import numpy as np
 import cv2 as cv
-from src.images.output_writer import TiffWriter
-from src.images.image import BaseImage
-from src.engine.config import Config
 import math
 from functools import partial
 from collections import namedtuple
@@ -10,42 +7,36 @@ from collections import namedtuple
 Circle = namedtuple('Circle', ['center_y', 'center_x', 'radius'])
 
 class Processor:
-    def __init__(self, config: Config):
-        self._config = config
+    def __init__(self, normalization: bool=True, normalization_percentile:float=99.7,
+                 masking_method:str='Thresholding', threshold_level:int=1526,
+                 radius_method:str='Eigenvalue', max_radius:int=2500):
         self._normalizer = None
-        if self._config.normalization:
-            self._normalizer = partial(normalize, percentile=self._config.normalization_percentile)
-        self._masker = partial(threshold_image, threshold=self._config.threshold_level)
-        if self._config.masking_method == 'K-Means':
+        if normalization:
+            self._normalizer = partial(normalize, percentile=normalization_percentile)
+        self._masker = partial(threshold_image, threshold=threshold_level)
+        if masking_method == 'K-Means':
             self._masker = kmeans
-        self._fitter = partial(circle_params_contour, max_radius = self._config.max_radius)
-        if self._config.radius_method == 'Eigenvalue':
-            self._fitter = partial(circle_params_eigenvalue, max_radius = self._config.max_radius)
-        self._writer = None
-        if self._config.write_roi:
-            self._writer = TiffWriter(self._config.directory)
+        self._fitter = partial(circle_params_contour, max_radius=max_radius)
+        if radius_method == 'Eigenvalue':
+            self._fitter = partial(circle_params_eigenvalue, max_radius=max_radius)
 
 
-    def circular_mean_fluorescence(self, img: BaseImage):
-        processed_img = np.copy(img.array)
+    def circular_mean_fluorescence(self, img_array: np.ndarray, scaling: float, white_point: int) -> (float, Circle):
+        processed_img = np.copy(img_array)
         if self._normalizer:
-            processed_img = self._normalizer(img)
+            processed_img = self._normalizer(img_array, white_point)
         processed_img = self._masker(processed_img)
 
         processed_img = cv.normalize(processed_img, dst = None, alpha = 0, beta = 255,
                                        norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-        params = self._fitter(processed_img, img.scaling)
-        if self._writer is not None:
-            self._writer.write_roi(img.array, str(img), *params)
-        return mean_intensity(img.array, params)
+        params = self._fitter(processed_img, scaling)
+        return mean_intensity(img_array, params), params
 
-
-
-def normalize(img: BaseImage, percentile: float) -> np.ndarray:
-    ubound = np.percentile(img.array, percentile)
-    return np.clip(img.array * (img.white_point / ubound), None, img.white_point)
+def normalize(img_array, white_point:int, percentile: float) -> np.ndarray:
+    ubound = np.percentile(img_array, percentile)
+    return np.clip(img_array * (white_point / ubound), None, white_point)
 
 def kmeans(img_array: np.ndarray) -> np.ndarray:
     flattened = np.float32(img_array.flatten())
