@@ -1,6 +1,5 @@
 import sys
 import os
-os.environ["QT_QPA_PLATFORM"] = "wayland"
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
@@ -24,6 +23,9 @@ class ProcessingWorker(QObject):
         self._config = config
         self._live = live
         self._stopped = False
+        self._img_writer = None
+        if self._config.write_roi:
+            self._img_writer = TiffWriter(self._config.directory)
 
     def run(self) -> None:
         if self._live:
@@ -45,8 +47,11 @@ class ProcessingWorker(QObject):
                     try:
                         queue.dequeue()
                         result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
+                        center_y, center_x, radius = roi
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
+                        if self._img_writer is not None:
+                            self._img_writer.write_roi(current_image.array, current_image.name, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
 
@@ -61,8 +66,11 @@ class ProcessingWorker(QObject):
                     try:
                         queue.dequeue()
                         result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
+                        center_y, center_x, radius = roi
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
+                        if self._img_writer is not None:
+                            self._img_writer.write_roi(current_image.array, current_image.name, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()

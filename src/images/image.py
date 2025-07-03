@@ -13,11 +13,15 @@ class BaseImage(ABC):
         self._array = reader(full_path)
 
     def __repr__(self):
-        return self._name
+        return self.name
 
     @property
     def array(self) -> np.ndarray:
         return self._array
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     @property
     @abstractmethod
