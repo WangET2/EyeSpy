@@ -35,12 +35,12 @@ class TiffWriter:
         if not os.path.exists(self._direc):
             os.mkdir(self._direc)
 
-    def write_roi(self, img_array: np.ndarray, filename: str, center_y: int, center_x, radius: int) -> None:
+    def write_roi(self, img_array: np.ndarray, filename: str, white_point: int, center_y: int, center_x, radius: int) -> None:
         img_array = np.copy(img_array)
         y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
         dist_squared = (y_coords - center_y) ** 2 + (x_coords - center_x) ** 2
         inner = dist_squared < radius ** 2
         outline = dist_squared == radius ** 2
-        img_array[inner] = 255
+        img_array[inner] = white_point
         img_array[outline] = 0
         tf.imwrite(self._direc / Path(filename + '.tiff'), img_array)

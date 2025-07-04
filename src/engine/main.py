@@ -51,7 +51,7 @@ class ProcessingWorker(QObject):
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
                         if self._img_writer is not None:
-                            self._img_writer.write_roi(current_image.array, current_image.name, center_y, center_x, radius)
+                            self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
 
@@ -70,7 +70,7 @@ class ProcessingWorker(QObject):
                         writer.write_row([str(current_image), f'{result:.3f}'])
                         self.output.emit(f'{current_image}: {result:.3f}')
                         if self._img_writer is not None:
-                            self._img_writer.write_roi(current_image.array, current_image.name, center_y, center_x, radius)
+                            self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()
