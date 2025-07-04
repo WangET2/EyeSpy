@@ -28,7 +28,7 @@ class Trainer:
         self._false.append(raw_image[truth==0])
 
 
-    def train(self) -> np.int_:
+    def train(self) -> int:
         current_true = np.concatenate(self._true)
         current_false = np.concatenate(self._false)
         p_true = len(current_true) / (len(current_true) + len(current_false))
@@ -38,12 +38,48 @@ class Trainer:
         return np.argmin(np.abs((hist_true * p_true) - (hist_false * p_false)))
 
 class Tester:
-    def __init__(self, direc: Path, pipeline: Callable):
-        self._direc = direc
+    def __init__(self, raw_dir: Path, truth_dir: Path, truth_intensity:int=255, raw_reader: Callable=czifile.imread,
+                 truth_reader:Callable = tf.imread, pipeline: Callable=None):
+        self._raw_dir = raw_dir
+        self._truth_dir = truth_dir
+        self._truth_intensity = truth_intensity
+        self._raw_reader = raw_reader
+        self._truth_reader = truth_reader
         self._pipeline = pipeline
+        self._true_positive = 0
+        self._false_positive = 0
+        self._true_negative = 0
+        self._false_negative = 0
+        self._total_pixels = 0
 
-    def update(self) -> None:
-        pass
+    def update(self, img_name: str) -> None:
+        current_image = self._raw_reader(self._raw_dir / Path(img_name))
+        if current_image.ndim == 4:
+            current_image = current_image[0,:,:,0]
+        current_image = self._pipeline(current_image)
+        current_mask = self._truth_reader(self._truth_dir / Path(img_name))
+        y_shape, x_shape = current_image.shape
+        self._total_pixels += y_shape * x_shape
+        self._true_positive += np.sum((current_image==self._truth_intensity) & (current_mask==self._truth_intensity))
+        self._false_positive += np.sum((current_image==self._truth_intensity) & (current_mask==0))
+        self._true_negative += np.sum((current_image==0) & (current_mask==0))
+        self._false_negative += np.sum((current_image==0) & (current_mask==self._truth_intensity))
 
-    def report(self): -> str:
-        pass
+
+    def report(self) -> str:
+        precision = self._true_positive / (self._true_positive + self._false_positive)
+        sensitivity = self._true_positive / (self._true_positive + self._false_negative)
+        to_return = f'''Correctly Identified: {self._true_positive + self._true_negative} ~~~~~ {((self._true_positive + self._true_negative)/self._total_pixels)*100:.4f}
+        Incorrectly Identified: {self._false_positive + self._false_negative} ~~~~~ {((self._false_positive + self._false_negative)/self._total_pixels)*100:.4f}
+    
+        True Positive: {self._true_positive} ~~~~~ {(self._true_positive /(self._true_positive + self._false_negative))*100:.4f}
+        False Positive: {self._false_positive} ~~~~~ {(self._false_positive /(self._false_positive + self._true_negative))*100:.4f}
+        
+        True Negative: {self._true_negative} ~~~~~ {(self._true_negative / (self._true_negative + self._false_positive)) * 100:.4f}
+        False Negative: {self._false_negative} ~~~~~ {(self._false_negative / (self._false_negative + self._true_positive)) * 100:.4f}
+        
+        PRECISION: {precision*100:.4f}
+        SENSITIVITY: {sensitivity*100:.4f}
+        F1 SCORE: {(2 * precision * sensitivity) / (precision + sensitivity) * 100:.4f}
+        '''
+        return to_return
