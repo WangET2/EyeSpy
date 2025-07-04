@@ -51,19 +51,25 @@ class Tester:
         self._true_negative = 0
         self._false_negative = 0
         self._total_pixels = 0
+        self._actual = 0
+        self._predicted = 0
+        self._total_images = 0
 
     def update(self, img_name: str) -> None:
         current_image = self._raw_reader(self._raw_dir / Path(img_name))
         if current_image.ndim == 4:
             current_image = current_image[0,:,:,0]
-        current_image = self._pipeline(current_image)
+        processed_image = self._pipeline(current_image)
         current_mask = self._truth_reader(self._truth_dir / Path(img_name))
         y_shape, x_shape = current_image.shape
         self._total_pixels += y_shape * x_shape
-        self._true_positive += np.sum((current_image==self._truth_intensity) & (current_mask==self._truth_intensity))
-        self._false_positive += np.sum((current_image==self._truth_intensity) & (current_mask==0))
-        self._true_negative += np.sum((current_image==0) & (current_mask==0))
-        self._false_negative += np.sum((current_image==0) & (current_mask==self._truth_intensity))
+        self._true_positive += np.sum((processed_image==self._truth_intensity) & (current_mask==self._truth_intensity))
+        self._false_positive += np.sum((processed_image==self._truth_intensity) & (current_mask==0))
+        self._true_negative += np.sum((processed_image==0) & (current_mask==0))
+        self._false_negative += np.sum((processed_image==0) & (current_mask==self._truth_intensity))
+        self._actual +=  np.mean(current_image[current_mask])
+        self._predicted += np.mean(current_image[processed_image])
+        self._total_images += 1
 
 
     def report(self) -> str:
@@ -81,5 +87,7 @@ class Tester:
         PRECISION: {precision*100:.4f}
         SENSITIVITY: {sensitivity*100:.4f}
         F1 SCORE: {(2 * precision * sensitivity) / (precision + sensitivity) * 100:.4f}
+        
+        Mean difference in fluorescence (actual vs. predicted): {np.abs(self._actual - self._predicted) / self._total_images:.4f}
         '''
         return to_return
