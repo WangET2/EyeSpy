@@ -22,17 +22,30 @@ class Processor:
 
 
     def circular_mean_fluorescence(self, img_array: np.ndarray, scaling: float, white_point: int) -> (float, Circle):
+        processed_img = self.process(img_array, white_point)
+        params = self._fitter(processed_img, scaling)
+        return mean_intensity(img_array, params), params
+
+    def process(self, img_array: np.ndarray, white_point: int) -> np.ndarray:
         processed_img = np.copy(img_array)
         if self._normalizer:
             processed_img = self._normalizer(img_array, white_point)
         processed_img = self._masker(processed_img)
 
-        processed_img = cv.normalize(processed_img, dst = None, alpha = 0, beta = 255,
-                                       norm_type = cv.NORM_MINMAX, dtype = cv.CV_8U)
+        processed_img = cv.normalize(processed_img, dst=None, alpha=0, beta=255,
+                                     norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
         processed_img = cv.morphologyEx(processed_img, cv.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-        params = self._fitter(processed_img, scaling)
-        return mean_intensity(img_array, params), params
+        return processed_img
+
+    def circular_roi(self, img_array: np.ndarray, scaling: float, white_point: int) -> np.ndarray:
+        processed_img = self.process(img_array, white_point)
+        roi = self._fitter(processed_img, scaling)
+        y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
+        dist_squared = (y_coords - roi.center_y) ** 2 + (x_coords - roi.center_x) ** 2
+        mask = dist_squared <= roi.radius ** 2
+        return img_array[mask]
+
 
 def normalize(img_array, white_point:int, percentile: float) -> np.ndarray:
     ubound = np.percentile(img_array, percentile)

@@ -67,8 +67,8 @@ class Tester:
         self._false_positive += np.sum((processed_image==self._truth_intensity) & (current_mask==0))
         self._true_negative += np.sum((processed_image==0) & (current_mask==0))
         self._false_negative += np.sum((processed_image==0) & (current_mask==self._truth_intensity))
-        self._actual +=  np.mean(current_image[current_mask])
-        self._predicted += np.mean(current_image[processed_image])
+        self._actual +=  np.mean(current_image[current_mask==self._truth_intensity])
+        self._predicted += np.mean(current_image[processed_image==self._truth_intensity])
         self._total_images += 1
 
 
