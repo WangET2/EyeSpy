@@ -4,8 +4,6 @@ from pathlib import Path
 import numpy as np
 import tifffile as tf
 import os
-from config import Config
-
 class CSVWriter:
     def __init__(self, direc: Path, header: list[str]):
         name = self._create_name()

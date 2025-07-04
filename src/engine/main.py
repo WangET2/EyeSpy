@@ -25,7 +25,7 @@ class ProcessingWorker(QObject):
         self._stopped = False
         self._img_writer = None
         if self._config.write_roi:
-            self._img_writer = TiffWriter(self._config.directory)
+            self._img_writer = TiffWriter(self._config.output_directory)
 
     def run(self) -> None:
         if self._live:
@@ -40,7 +40,7 @@ class ProcessingWorker(QObject):
         factory = partial(self._config.create_image, reader=self._config.stable_reader())
         queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format, enqueue_existing=True)
         processor = self._config.create_processor()
-        with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.output_directory, header = ['filename', 'fluorescence']) as writer:
             while not queue.is_empty() and not self._stopped:
                 current_image = queue.front()
                 if current_image is not None:
@@ -58,7 +58,7 @@ class ProcessingWorker(QObject):
     def _live_process(self) -> None:
         queue = self._config.create_queue()
         processor = self._config.create_processor()
-        with CSVWriter(self._config.directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.output_directory, header = ['filename', 'fluorescence']) as writer:
             while not self._stopped:
                 queue.update()
                 current_image = queue.front()
