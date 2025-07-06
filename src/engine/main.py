@@ -1,5 +1,8 @@
 import sys
 import os
+from platform import processor
+from string import whitespace
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
@@ -74,6 +77,61 @@ class ProcessingWorker(QObject):
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()
+
+class BayesianWorker(QObject):
+    report = pyqtSignal(str)
+    finished = pyqtSignal
+    progress = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, conf: Config, mode: str):
+        self._config = conf
+        self._mode = mode
+        self._stopped = False
+        factory = partial(self._config.create_image, reader=self._config.stable_reader())
+        self._queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format,
+                          enqueue_existing=True)
+        self._processor = self._config.create_processor()
+        self._max = len(self._queue)
+
+    def run(self):
+        if self._mode.lower() == 'train':
+            self._train()
+        elif self._mode.lower() == 'test':
+            self._test()
+
+    def _train(self):
+        trainer = self._config.create_trainer()
+        i = 1
+        while not self._queue.is_empty() and not self._stopped:
+            current_image = self._queue.front()
+            if current_image is not None:
+                try:
+                    self._queue.dequeue()
+                    trainer.update(img_name=current_image.name, white_point=current_image.white_point)
+                    self.progress.emit(f'Training {current_image} Complete: {i}/{self._max}')
+                    i += 1
+                except Exception as e:
+                    self.error.emit(f'Error training with {current_image}: {str(e)}')
+        self.report.emit(f'{trainer.train():.4f}')
+
+    def _test(self):
+        tester = self._config.create_tester()
+        i = 1
+        while not self._queue.is_empty() and not self._stopped:
+            current_image = self._queue.front()
+            if current_image is not None:
+                try:
+                    self._queue.dequeue()
+                    tester.update(img_name = current_image.name, white_point=current_image.white_point,
+                                  scaling=current_image.scaling)
+                    self.progress.emit(f'Testing {current_image} Complete: {i}/{self._max}')
+                    i += 1
+                except Exception as e:
+                    self.error.emit(f'Error training with {current_image}: {str(e)}')
+
+    def stop(self):
+        self._stopped = True
 
 class ConfigWindow(QMainWindow):
     def __init__(self, config: Config):
