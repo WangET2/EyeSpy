@@ -4,7 +4,8 @@ from pathlib import Path
 from functools import partial
 from src.images.image import BaseImage, TiffImage, CziImage, stable_read
 from src.engine.images_queue import BaseQueue, LazyQueue, EagerQueue
-from src.images.processing import Processor
+from src.images.bayesian import Trainer, Tester
+from src.images.processing import Processor, normalize
 from czifile import imread as cziread
 from tifffile import imread as tiffread
 
@@ -90,14 +91,32 @@ class Config:
         return self._config.getint('processing', 'Max_Checks', fallback=10)
 
     @property
-    def training_directory(self) -> Path:
-        to_return = self._config.get('bayesian', 'Training_Directory', fallback='None')
+    def training_directory_raw(self) -> Path:
+        to_return = self._config.get('bayesian', 'Training_Directory_Raw', fallback='./training/raw')
         return Path(to_return) if to_return.lower() != 'none' else None
 
     @property
-    def testing_directory(self) -> Path:
-        to_return = self._config.get('bayesian', 'Testing_Directory', fallback = 'None')
+    def training_directory_truth(self) -> Path:
+        to_return = self._config.get('bayesian', 'Training_Directory_Truth', fallback='./training/truth')
         return Path(to_return) if to_return.lower() != 'none' else None
+
+    @property
+    def testing_directory_raw(self) -> Path:
+        to_return = self._config.get('bayesian', 'Testing_Directory_Raw', fallback = './testing/raw')
+        return Path(to_return) if to_return.lower() != 'none' else None
+
+    @property
+    def testing_directory_truth(self) -> Path:
+        to_return = self._config.get('bayesian', 'Testing_Directory_Truth', fallback='./testing/truth')
+        return Path(to_return) if to_return.lower() != 'none' else None
+
+    @property
+    def truth_intensity(self) -> int:
+        return self._config.getint('bayesian', 'Truth_Intensity', fallback=255)
+
+    @property
+    def testing_method(self) -> str:
+        return self._config.get('bayesian', 'Testing_Method', fallback='Circle')
 
     def _create_default(self):
         with open('options.ini', 'w') as config_file:
@@ -119,8 +138,12 @@ class Config:
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
                                         'Max_Checks': '10'}
-            self._config['bayesian'] = {'Training_Directory': 'None',
-                                        'Testing_Directory': 'None'}
+            self._config['bayesian'] = {'Training_Directory_Raw': './training/raw',
+                                        'Training_Directory_Truth': './training/truth',
+                                        'Testing_Directory_Raw': './testing/raw',
+                                        'Testing_Directory_Truth': './testing/truth',
+                                        'Truth_Intensity': '255',
+                                        'Testing_Method': 'Circle'}
             self._config.write(config_file)
 
     def save(self) -> None:
@@ -152,6 +175,8 @@ class Config:
             raise ValueError('Delay Between Stability Checks must be a numeric value.')
         if not self._config.get('processing', 'Max_Checks').isdigit():
             raise ValueError('Maximum Stability Checks must be an integer value.')
+        if not self._config.get('bayesian', 'Truth_Intensity').isdigit():
+            raise ValueError('Truth Intensity must be an integer value.')
 
     def create_image(self, img_path: Path, reader: Callable) -> BaseImage:
         if self.image_format == 'CZI':
@@ -173,3 +198,16 @@ class Config:
     def stable_reader(self) -> Callable:
         reader = cziread if self.image_format == 'CZI' else tiffread
         return partial(stable_read, reader=reader, max_attempts=self.max_checks, delay_s=self.check_delay, required_stable=self.required_stable)
+
+    def create_trainer(self) -> Trainer:
+        preprocessing = partial(normalize, percentile=self.normalization_percentile) if self.normalization else None
+        return Trainer(raw_dir=self.training_directory_raw, truth_dir=self.training_directory_truth,
+                       truth_intensity=self.truth_intensity, preprocessing=preprocessing)
+
+    def create_tester(self) -> Tester:
+        temp_processor = self.create_processor()
+        pipeline = temp_processor.process
+        if self.testing_method.lower() == 'circle':
+            pipeline = temp_processor.circular_roi
+        return Tester(raw_dir=self.testing_directory_raw, truth_dir=self.testing_directory_truth,
+                      truth_intensity=self.truth_intensity, pipeline=pipeline)
