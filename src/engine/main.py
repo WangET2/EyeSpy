@@ -111,7 +111,7 @@ class BayesianWorker(QObject):
                     self.error.emit(f'Error training with {current_image}: {str(e)}')
                 finally:
                     self._counter += 1
-        self.report.emit(f'{trainer.train():.4f}')
+        self.report.emit(f'Suggested Threshold: {trainer.train():.4f}')
 
     def _test(self):
         tester = self._config.create_tester()
@@ -124,7 +124,7 @@ class BayesianWorker(QObject):
                                   scaling=current_image.scaling)
                     self.progress.emit(f'Testing {current_image} Complete: {self._counter}/{self._max}')
                 except Exception as e:
-                    self.error.emit(f'Error training with {current_image}: {str(e)}')
+                    self.error.emit(f'Error testing with {current_image}: {str(e)}')
                 finally:
                     self._counter += 1
         self.report.emit(tester.report())
