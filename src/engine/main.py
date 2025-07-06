@@ -1,8 +1,5 @@
 import sys
 import os
-from platform import processor
-from string import whitespace
-
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
