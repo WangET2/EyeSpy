@@ -40,6 +40,9 @@ class BaseQueue(ABC):
             if val.is_file() and val.suffix.lower() == f'.{self._format}'.lower():
                 self.enqueue(val)
 
+    def __len__(self):
+        return len(self._deque)
+
     @abstractmethod
     def enqueue(self, val: str) -> None:
         pass
