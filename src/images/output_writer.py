@@ -8,6 +8,8 @@ class CSVWriter:
     def __init__(self, direc: Path, header: list[str]):
         name = self._create_name()
         self._header = header
+        if not os.path.exists(direc):
+            os.mkdir(direc)
         self._filepath = direc / f'{name}.csv'
         self._file = None
         self._writer = None
