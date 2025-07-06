@@ -35,7 +35,7 @@ class Config:
 
     @property
     def output_directory(self) -> Path:
-        to_return =  self._config.get('files', 'Output_Directory', fallback=self.directory)
+        to_return =  self._config.get('files', 'Output_Directory', fallback='./output')
         return Path(to_return) if to_return.lower() != 'none' else None
 
     @property
@@ -124,7 +124,7 @@ class Config:
                                      'Queue_Type': 'File',
                                      'Enqueue_Existing': 'False',
                                      'Write_ROI': 'False',
-                                     'Output_Directory': 'None'}
+                                     'Output_Directory': './output'}
             self._config['images'] = {'Image_Format': 'CZI',
                                         'White_Point': '4095',
                                         'Scaling': '3.45',
