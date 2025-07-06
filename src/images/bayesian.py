@@ -17,13 +17,13 @@ class Trainer:
         self._false = []
         self._bins = bins
 
-    def update(self, img_name:str) -> None:
+    def update(self, img_name:str, **kwargs) -> None:
         raw_image = self._raw_reader(self._raw_dir / Path(img_name))
         if raw_image.ndim == 4:
             raw_image = raw_image[0,:,:,0]
         truth = self._truth_reader(self._truth_dir / Path(img_name))
         if self._preprocessing is not None:
-            raw_image = self._preprocessing(raw_image)
+            raw_image = self._preprocessing(raw_image, **kwargs)
         self._true.append(raw_image[truth==self._truth_intensity])
         self._false.append(raw_image[truth==0])
 
@@ -55,11 +55,11 @@ class Tester:
         self._predicted = 0
         self._total_images = 0
 
-    def update(self, img_name: str) -> None:
+    def update(self, img_name: str, **kwargs) -> None:
         current_image = self._raw_reader(self._raw_dir / Path(img_name))
         if current_image.ndim == 4:
             current_image = current_image[0,:,:,0]
-        processed_image = self._pipeline(current_image)
+        processed_image = self._pipeline(current_image, **kwargs)
         current_mask = self._truth_reader(self._truth_dir / Path(img_name))
         y_shape, x_shape = current_image.shape
         self._total_pixels += y_shape * x_shape
