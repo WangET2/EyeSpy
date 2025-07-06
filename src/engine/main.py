@@ -77,7 +77,7 @@ class ProcessingWorker(QObject):
 
 class BayesianWorker(QObject):
     report = pyqtSignal(str)
-    finished = pyqtSignal
+    finished = pyqtSignal()
     progress = pyqtSignal(str)
     error = pyqtSignal(str)
 
@@ -90,6 +90,7 @@ class BayesianWorker(QObject):
                           enqueue_existing=True)
         self._processor = self._config.create_processor()
         self._max = len(self._queue)
+        self._counter = 1
 
     def run(self):
         if self._mode.lower() == 'train':
@@ -99,22 +100,21 @@ class BayesianWorker(QObject):
 
     def _train(self):
         trainer = self._config.create_trainer()
-        i = 1
         while not self._queue.is_empty() and not self._stopped:
             current_image = self._queue.front()
             if current_image is not None:
                 try:
                     self._queue.dequeue()
                     trainer.update(img_name=current_image.name, white_point=current_image.white_point)
-                    self.progress.emit(f'Training {current_image} Complete: {i}/{self._max}')
-                    i += 1
+                    self.progress.emit(f'Training {current_image} Complete: {self._counter}/{self._max}')
                 except Exception as e:
                     self.error.emit(f'Error training with {current_image}: {str(e)}')
+                finally:
+                    self._counter += 1
         self.report.emit(f'{trainer.train():.4f}')
 
     def _test(self):
         tester = self._config.create_tester()
-        i = 1
         while not self._queue.is_empty() and not self._stopped:
             current_image = self._queue.front()
             if current_image is not None:
@@ -122,10 +122,12 @@ class BayesianWorker(QObject):
                     self._queue.dequeue()
                     tester.update(img_name = current_image.name, white_point=current_image.white_point,
                                   scaling=current_image.scaling)
-                    self.progress.emit(f'Testing {current_image} Complete: {i}/{self._max}')
-                    i += 1
+                    self.progress.emit(f'Testing {current_image} Complete: {self._counter}/{self._max}')
                 except Exception as e:
                     self.error.emit(f'Error training with {current_image}: {str(e)}')
+                finally:
+                    self._counter += 1
+        self.report.emit(tester.report())
 
     def stop(self):
         self._stopped = True
