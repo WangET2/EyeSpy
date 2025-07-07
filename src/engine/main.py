@@ -305,17 +305,10 @@ class ProcessingWindow(QMainWindow):
         self._worker.moveToThread(self._processing_thread)
         self._processing_thread.started.connect(self._worker.run)
         self._worker.finished.connect(self._processing_thread.quit)
-        #self._worker.finished.connect(self._worker.deleteLater)
         self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
-        #self._worker.finished.connect(self._processing_finished)
-        #self._processing_thread.finished.connect(self._processing_finished)
 
         self._processing_thread.start()
-
-    def _processing_finished(self):
-        self._worker = None
-        self._processing_thread = None
 
     def _exit(self):
         if self._worker:
