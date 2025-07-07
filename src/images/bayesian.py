@@ -6,22 +6,25 @@ import czifile
 
 class Trainer:
     def __init__(self, raw_dir: Path, truth_dir: Path, truth_intensity:int=255, raw_reader: Callable=czifile.imread,
-                 truth_reader:Callable = tf.imread, preprocessing: Callable=None, bins:int=4096):
+                 truth_reader:Callable = tf.imread, raw_extension: str='czi',
+                 truth_extension: str='tif', preprocessing: Callable=None, bins:int=4096):
         self._raw_dir = raw_dir
         self._truth_dir = truth_dir
         self._truth_intensity = truth_intensity
         self._raw_reader = raw_reader
         self._truth_reader = truth_reader
+        self._raw_extension = raw_extension
+        self._truth_extension = truth_extension
         self._preprocessing = preprocessing
         self._true = []
         self._false = []
         self._bins = bins
 
     def update(self, img_name:str, **kwargs) -> None:
-        raw_image = self._raw_reader(self._raw_dir / Path(img_name))
+        raw_image = self._raw_reader(self._raw_dir / Path(f'{img_name}.{self._raw_extension}'))
         if raw_image.ndim == 4:
             raw_image = raw_image[0,:,:,0]
-        truth = self._truth_reader(self._truth_dir / Path(img_name))
+        truth = self._truth_reader(self._truth_dir / Path(f'{img_name}.{self._truth_extension}'))
         if self._preprocessing is not None:
             raw_image = self._preprocessing(raw_image, **kwargs)
         self._true.append(raw_image[truth==self._truth_intensity])
@@ -38,13 +41,16 @@ class Trainer:
         return np.argmin(np.abs((hist_true * p_true) - (hist_false * p_false)))
 
 class Tester:
-    def __init__(self, raw_dir: Path, truth_dir: Path, truth_intensity:int=255, raw_reader: Callable=czifile.imread,
-                 truth_reader:Callable = tf.imread, pipeline: Callable=None):
+    def __init__(self, raw_dir: Path, truth_dir: Path, truth_intensity:int=255,
+                 raw_extension: str='czi', truth_extension: str='tif',
+                 raw_reader: Callable=czifile.imread, truth_reader:Callable = tf.imread, pipeline: Callable=None):
         self._raw_dir = raw_dir
         self._truth_dir = truth_dir
         self._truth_intensity = truth_intensity
         self._raw_reader = raw_reader
         self._truth_reader = truth_reader
+        self._raw_extension = raw_extension
+        self._truth_extension = truth_extension
         self._pipeline = pipeline
         self._true_positive = 0
         self._false_positive = 0
@@ -56,11 +62,11 @@ class Tester:
         self._total_images = 0
 
     def update(self, img_name: str, **kwargs) -> None:
-        current_image = self._raw_reader(self._raw_dir / Path(img_name))
+        current_image = self._raw_reader(self._raw_dir / Path(f'{img_name}.{self._raw_extension}'))
         if current_image.ndim == 4:
             current_image = current_image[0,:,:,0]
         processed_image = self._pipeline(current_image, **kwargs)
-        current_mask = self._truth_reader(self._truth_dir / Path(img_name))
+        current_mask = self._truth_reader(self._truth_dir / Path(f'{img_name}.{self._truth_extension}'))
         y_shape, x_shape = current_image.shape
         self._total_pixels += y_shape * x_shape
         self._true_positive += np.sum((processed_image==self._truth_intensity) & (current_mask==self._truth_intensity))
