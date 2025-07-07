@@ -322,10 +322,16 @@ class ConfigWindow(QMainWindow):
             QMessageBox.critical(self, 'Error', f'Failed to save configuration:\n{str(e)}')
 
     def _reset_config(self):
-        self._config.reset()
-        QMessageBox.information(self, 'Success', 'Configuration reset!')
-        self._ui.save_button.setEnabled(False)
-        self._load_config_to_ui()
+        reset_warning = QMessageBox(self, 'Warning', 'Are you sure you want to reset? All changes will be lost!')
+        reset_warning.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        response = reset_warning.exec_()
+        if response == QMessageBox.Yes:
+            self._config.reset()
+            QMessageBox.information(self, 'Success', 'Configuration reset!')
+            self._ui.save_button.setEnabled(False)
+            self._load_config_to_ui()
+        elif response == QMessageBox.No:
+            reset_warning.close()
 
 class ProcessingWindow(QMainWindow):
     def __init__(self, config: Config, *, live=True):
