@@ -36,8 +36,8 @@ class Trainer:
         current_false = np.concatenate(self._false)
         p_true = len(current_true) / (len(current_true) + len(current_false))
         p_false = 1 - p_true
-        hist_true, _ = np.histogram(current_true, bins=self._bins, range=(0, self._bins), density=True)
-        hist_false, _ = np.histogram(current_false, bins=self._bins, range=(0, self._bins), density=True)
+        hist_true, _ = np.histogram(current_true, bins=self._bins, range=(0, self._bins-1), density=True)
+        hist_false, _ = np.histogram(current_false, bins=self._bins, range=(0, self._bins-1), density=True)
         return np.argmin(np.abs((hist_true * p_true) - (hist_false * p_false)))
 
 class Tester:
@@ -81,18 +81,18 @@ class Tester:
     def report(self) -> str:
         precision = self._true_positive / (self._true_positive + self._false_positive)
         sensitivity = self._true_positive / (self._true_positive + self._false_negative)
-        to_return = f'''Correctly Identified: {self._true_positive + self._true_negative} ~~~~~ {((self._true_positive + self._true_negative)/self._total_pixels)*100:.4f}
-        Incorrectly Identified: {self._false_positive + self._false_negative} ~~~~~ {((self._false_positive + self._false_negative)/self._total_pixels)*100:.4f}
+        to_return = f'''Correctly Identified: {self._true_positive + self._true_negative} ~~~~~ {((self._true_positive + self._true_negative)/self._total_pixels)*100:.4f}%
+        Incorrectly Identified: {self._false_positive + self._false_negative} ~~~~~ {((self._false_positive + self._false_negative)/self._total_pixels)*100:.4f}%
     
-        True Positive: {self._true_positive} ~~~~~ {(self._true_positive /(self._true_positive + self._false_negative))*100:.4f}
-        False Positive: {self._false_positive} ~~~~~ {(self._false_positive /(self._false_positive + self._true_negative))*100:.4f}
+        True Positive: {self._true_positive} ~~~~~ {(self._true_positive /(self._true_positive + self._false_negative))*100:.4f}%
+        False Positive: {self._false_positive} ~~~~~ {(self._false_positive /(self._false_positive + self._true_negative))*100:.4f}%
         
-        True Negative: {self._true_negative} ~~~~~ {(self._true_negative / (self._true_negative + self._false_positive)) * 100:.4f}
-        False Negative: {self._false_negative} ~~~~~ {(self._false_negative / (self._false_negative + self._true_positive)) * 100:.4f}
+        True Negative: {self._true_negative} ~~~~~ {(self._true_negative / (self._true_negative + self._false_positive)) * 100:.4f}%
+        False Negative: {self._false_negative} ~~~~~ {(self._false_negative / (self._false_negative + self._true_positive)) * 100:.4f}%
         
-        PRECISION: {precision*100:.4f}
-        SENSITIVITY: {sensitivity*100:.4f}
-        F1 SCORE: {(2 * precision * sensitivity) / (precision + sensitivity) * 100:.4f}
+        PRECISION: {precision*100:.4f}%
+        SENSITIVITY: {sensitivity*100:.4f}%
+        F1 SCORE: {(2 * precision * sensitivity) / (precision + sensitivity) * 100:.4f}%
         
         Mean difference in fluorescence (actual vs. predicted): {np.abs(self._actual - self._predicted) / self._total_images:.4f}
         '''

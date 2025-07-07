@@ -80,17 +80,17 @@ class ProcessingWorker(QObject):
         self.finished.emit()
 
 class BayesianWorker(QObject):
-    report = pyqtSignal(str)
+    output = pyqtSignal(str)
     finished = pyqtSignal()
-    progress = pyqtSignal(str)
     error = pyqtSignal(str)
 
     def __init__(self, conf: Config, mode: str):
+        super().__init__()
         self._config = conf
         self._mode = mode
         self._stopped = False
         factory = partial(self._config.create_image, reader=self._config.stable_reader())
-        self._queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format,
+        self._queue = LazyQueue(self._config.training_directory_raw, image_factory=factory, file_format=self._config.image_format,
                           enqueue_existing=True)
         self._processor = self._config.create_processor()
         self._max = len(self._queue)
@@ -110,12 +110,13 @@ class BayesianWorker(QObject):
                 try:
                     self._queue.dequeue()
                     trainer.update(img_name=current_image.name, white_point=current_image.white_point)
-                    self.progress.emit(f'Training {current_image} Complete: {self._counter}/{self._max}')
+                    self.output.emit(f'Training {current_image} Complete: {self._counter}/{self._max}')
                 except Exception as e:
                     self.error.emit(f'Error training with {current_image}: {str(e)}')
                 finally:
                     self._counter += 1
-        self.report.emit(f'Suggested Threshold: {trainer.train():.4f}')
+        self.output.emit('Calculating...')
+        self.output.emit(f'Suggested Threshold: {trainer.train():.4f}')
         self.finished.emit()
 
     def _test(self):
@@ -127,12 +128,12 @@ class BayesianWorker(QObject):
                     self._queue.dequeue()
                     tester.update(img_name = current_image.name, white_point=current_image.white_point,
                                   scaling=current_image.scaling)
-                    self.progress.emit(f'Testing {current_image} Complete: {self._counter}/{self._max}')
+                    self.output.emit(f'Testing {current_image} Complete: {self._counter}/{self._max}')
                 except Exception as e:
                     self.error.emit(f'Error testing with {current_image}: {str(e)}')
                 finally:
                     self._counter += 1
-        self.report.emit(tester.report())
+        self.output.emit(tester.report())
         self.finished.emit()
 
     def stop(self):
@@ -329,35 +330,42 @@ class BayesianWindow(QMainWindow):
         super().__init__()
         self._config = config
         self._mode = mode
-        self._ui = Ui_ProcessingWindow
+        self._ui = Ui_ProcessingWindow()
         self._ui.setupUi(self)
         title = 'Bayesian Training' if mode.lower() == 'training' else 'Bayesian Testing'
         self.setWindowTitle(title)
-        self._processing_thread = None
+        self._bayesian_thread = None
         self._worker = None
         self._ui.exit_button.clicked.connect(self._exit)
-        self._run_bayesian()
+        self.run_bayesian()
 
-    def _run_bayesian(self):
+    def run_bayesian(self):
         if self._bayesian_thread or self._worker:
             return
         self._bayesian_thread = QThread()
         self._worker = BayesianWorker(self._config, self._mode)
         self._worker.moveToThread(self._bayesian_thread)
         self._bayesian_thread.started.connect(self._worker.run)
-        self._worker.report.connect(self._show_output)
+        self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
-        self._worker.proress.connect(self._show_output)
-        self._worker.finished.connect(self._processing_thread.quit)
+        self._worker.finished.connect(self._bayesian_thread.quit)
         self._bayesian_thread.start()
 
     def _exit(self):
         if self._worker:
             self._worker.stop()
-        if self._processing_thread:
-            self._processing_thread.quit()
-            self._processing_thread.wait(1000)
+        if self._bayesian_thread:
+            self._bayesian_thread.quit()
+            self._bayesian_thread.wait(1000)
         self.close()
+
+    def closeEvent(self, event):
+        if self._worker:
+            self._worker.stop()
+        if self._bayesian_thread:
+            self._bayesian_thread.quit()
+            self._bayesian_thread.wait(1000)
+        event.accept()
 
     def _show_output(self, output: str) -> None:
         self._ui.output_textbox.append(output)
@@ -387,7 +395,7 @@ class MainWindow(QMainWindow):
     def _validate_directory(self, dirs: Iterable) -> bool:
         for directory in dirs:
             if not directory:
-                QMessageBox.warning(self, 'Config Error', 'No Training director[y/ies] selected. Select directory in settings before testing.')
+                QMessageBox.warning(self, 'Config Error', 'No director[y/ies] selected. Select directory in settings before testing.')
                 return False
             if not directory.exists():
                 QMessageBox.warning(self, 'Config Error', f'Selected directory {self._config.directory} does not appear to exist or cannot be accessed.')
@@ -415,8 +423,8 @@ class MainWindow(QMainWindow):
     def start_training(self):
         if not self._validate_directory([self._config.training_directory_raw, self._config.training_directory_truth]):
             return
-        if self.bayesian_window is not None or not self.bayesian_window.isVisible():
-            self.bayesian_window = BayesianWindow(self._configg, mode='training')
+        if self.bayesian_window is None or not self.bayesian_window.isVisible():
+            self.bayesian_window = BayesianWindow(self._config, mode='train')
         self.bayesian_window.show()
         self.bayesian_window.raise_()
         self.bayesian_window.activateWindow()
@@ -424,8 +432,8 @@ class MainWindow(QMainWindow):
     def start_testing(self):
         if not self._validate_directory([self._config.testing_directory_raw, self._config.testing_directory_truth]):
             return
-        if self.bayesian_window is not None or not self.bayesian_window.isVisible():
-            self.bayesian_window = BayesianWindow(self._configg, mode='testing')
+        if self.bayesian_window is None or not self.bayesian_window.isVisible():
+            self.bayesian_window = BayesianWindow(self._config, mode='test')
         self.bayesian_window.show()
         self.bayesian_window.raise_()
         self.bayesian_window.activateWindow()

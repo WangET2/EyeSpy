@@ -26,7 +26,7 @@ class Processor:
         params = self._fitter(processed_img, scaling)
         return mean_intensity(img_array, params), params
 
-    def process(self, img_array: np.ndarray, white_point: int) -> np.ndarray:
+    def process(self, img_array: np.ndarray, scaling: float, white_point: int) -> np.ndarray:
         processed_img = np.copy(img_array)
         if self._normalizer:
             processed_img = self._normalizer(img_array, white_point)
