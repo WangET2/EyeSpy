@@ -350,6 +350,7 @@ class ConfigWindow(QMainWindow):
             unsaved_warning.setDefaultButton(QMessageBox.No)
             response = unsaved_warning.exec_()
             if response == QMessageBox.Yes:
+                self._load_config_to_ui()
                 event.accept()
             elif response == QMessageBox.No:
                 event.ignore()
