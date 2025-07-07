@@ -158,7 +158,7 @@ class ConfigWindow(QMainWindow):
         self._ui.setupUi(self)
         self.setWindowTitle('Settings')
         self._config = config
-
+        self._unsaved_changes = False
 
         self._ui.directory_push_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.directory_line_edit))
         self._ui.output_directory_push_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.output_directory_line_edit))
@@ -199,6 +199,7 @@ class ConfigWindow(QMainWindow):
 
     def _enable_save(self):
         self._ui.save_button.setEnabled(True)
+        self._unsaved_changes=True
 
     def _select_directory(self, line_edit: QLineEdit):
         directory = QFileDialog.getExistingDirectory(self, 'Select Image Directory')
@@ -315,6 +316,7 @@ class ConfigWindow(QMainWindow):
             self._config.validate()
             self._config.save()
             self._ui.save_button.setEnabled(False)
+            self._unsaved_changes=False
             QMessageBox.information(self, 'Success', 'Configuration saved successfully!')
         except ValueError as e:
             QMessageBox.warning(self, 'Invalid Input', f'\n{str(e)}')
@@ -336,6 +338,21 @@ class ConfigWindow(QMainWindow):
             self._ui.save_button.setEnabled(False)
         elif response == QMessageBox.No:
             reset_warning.close()
+
+    def closeEvent(self, event):
+        if self._unsaved_changes:
+            unsaved_warning = QMessageBox()
+            unsaved_warning.setIcon(QMessageBox.Warning)
+            unsaved_warning.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            unsaved_warning.setText('Are you sure you want to exit?')
+            unsaved_warning.setInformativeText(
+                'All unsaved settings will be lost. This cannot be undone.')
+            unsaved_warning.setDefaultButton(QMessageBox.No)
+            response = unsaved_warning.exec_()
+            if response == QMessageBox.Yes:
+                event.accept()
+            elif response == QMessageBox.No:
+                unsaved_warning.close()
 
 class ProcessingWindow(QMainWindow):
     def __init__(self, config: Config, *, live=True):
