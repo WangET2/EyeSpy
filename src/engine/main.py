@@ -160,7 +160,7 @@ class ConfigWindow(QMainWindow):
         self._config = config
 
 
-        self._ui.directory_push_button.clicked.connect(self._select_directory)
+        self._ui.directory_push_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.directory_line_edit))
         self._ui.output_directory_push_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.output_directory_line_edit))
         self._ui.training_input_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.training_input_directory_line_edit))
         self._ui.training_mask_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.training_mask_directory_line_edit))
@@ -199,11 +199,6 @@ class ConfigWindow(QMainWindow):
 
     def _enable_save(self):
         self._ui.save_button.setEnabled(True)
-
-    def _select_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, 'Select Image Directory')
-        if directory:
-            self._ui.directory_line_edit.setText(directory)
 
     def _select_directory(self, line_edit: QLineEdit):
         directory = QFileDialog.getExistingDirectory(self, 'Select Image Directory')
