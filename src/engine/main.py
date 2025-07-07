@@ -352,7 +352,10 @@ class ConfigWindow(QMainWindow):
             if response == QMessageBox.Yes:
                 event.accept()
             elif response == QMessageBox.No:
+                event.ignore()
                 unsaved_warning.close()
+        else:
+            event.accept()
 
 class ProcessingWindow(QMainWindow):
     def __init__(self, config: Config, *, live=True):
