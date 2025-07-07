@@ -12,6 +12,7 @@ from src.engine.config import Config
 from src.images.output_writer import CSVWriter, TiffWriter
 from src.engine.images_queue import LazyQueue
 from functools import partial
+from time import time
 
 
 
@@ -43,7 +44,10 @@ class ProcessingWorker(QObject):
         factory = partial(self._config.create_image, reader=self._config.stable_reader())
         queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format, enqueue_existing=True)
         processor = self._config.create_processor()
+        to_process = len(queue)
         with CSVWriter(self._config.output_directory, header = ['filename', 'fluorescence']) as writer:
+            begin_time = time()
+            count = 1
             while not queue.is_empty() and not self._stopped:
                 current_image = queue.front()
                 if current_image is not None:
@@ -52,11 +56,16 @@ class ProcessingWorker(QObject):
                         result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
                         center_y, center_x, radius = roi
                         writer.write_row([str(current_image), f'{result:.3f}'])
-                        self.output.emit(f'{current_image}: {result:.3f}')
+                        self.output.emit(f'{count}/{to_process} - {current_image}: {result:.3f}')
                         if self._img_writer is not None:
                             self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
+                    finally:
+                        count += 1
+        completion_time = time()
+        self.output.emit(f'Total time: {completion_time - begin_time:.4f} sec')
+        self.output.emit(f'Average time per image: {(completion_time - begin_time) / to_process:.4f} sec')
         self.finished.emit()
 
     def _live_process(self) -> None:
@@ -90,7 +99,8 @@ class BayesianWorker(QObject):
         self._mode = mode
         self._stopped = False
         factory = partial(self._config.create_image, reader=self._config.stable_reader())
-        self._queue = LazyQueue(self._config.training_directory_raw, image_factory=factory, file_format=self._config.image_format,
+        direc = self._config.training_directory_raw if self._mode.lower() == 'train' else self._config.testing_directory_raw
+        self._queue = LazyQueue(direc, image_factory=factory, file_format=self._config.image_format,
                           enqueue_existing=True)
         self._processor = self._config.create_processor()
         self._max = len(self._queue)
@@ -121,6 +131,7 @@ class BayesianWorker(QObject):
 
     def _test(self):
         tester = self._config.create_tester()
+        begin_time = time()
         while not self._queue.is_empty() and not self._stopped:
             current_image = self._queue.front()
             if current_image is not None:
@@ -133,7 +144,10 @@ class BayesianWorker(QObject):
                     self.error.emit(f'Error testing with {current_image}: {str(e)}')
                 finally:
                     self._counter += 1
+        completion_time = time()
         self.output.emit(tester.report())
+        self.output.emit(f'Total time: {completion_time - begin_time:.4f} sec')
+        self.output.emit(f'Average time per image: {(completion_time - begin_time) / self._max:.4f} sec')
         self.finished.emit()
 
     def stop(self):
