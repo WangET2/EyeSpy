@@ -246,6 +246,9 @@ class ConfigWindow(QMainWindow):
             self._ui.testing_input_directory_line_edit.setText(str(self._config.testing_directory_raw))
         if self._config.testing_directory_truth:
             self._ui.testing_mask_directory_line_edit.setText(str(self._config.testing_directory_truth))
+        self._ui.truth_intensity_line_edit.setText(str(self._config.truth_intensity))
+        method_index = 0 if self._config.masking_method.lower() == 'circle' else 1
+        self._ui.masking_dropdown.setCurrentIndex(method_index)
 
         self._update_ui()
 
