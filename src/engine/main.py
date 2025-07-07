@@ -1,8 +1,8 @@
 import sys
-import os
+from time import time
 from typing import Iterable
-
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
+from functools import partial
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog, QLineEdit
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
 from src.gui.main_menu import Ui_MainWindow
@@ -11,8 +11,6 @@ from src.gui.processing_ui import Ui_ProcessingWindow
 from src.engine.config import Config
 from src.images.output_writer import CSVWriter, TiffWriter
 from src.engine.images_queue import LazyQueue
-from functools import partial
-from time import time
 
 
 
@@ -161,7 +159,13 @@ class ConfigWindow(QMainWindow):
         self.setWindowTitle('Settings')
         self._config = config
 
+
         self._ui.directory_push_button.clicked.connect(self._select_directory)
+        self._ui.output_directory_push_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.output_directory_line_edit))
+        self._ui.training_input_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.training_input_directory_line_edit))
+        self._ui.training_mask_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.training_mask_directory_line_edit))
+        self._ui.testing_input_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.testing_input_directory_line_edit))
+        self._ui.testing_mask_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.testing_mask_directory_line_edit))
         self._ui.save_button.clicked.connect(self._save_config)
         self._ui.reset_button.clicked.connect(self._reset_config)
         self._connect_save_signals()
@@ -178,11 +182,15 @@ class ConfigWindow(QMainWindow):
                       self._ui.whitepoint_line_edit, self._ui.radius_line_edit,
                       self._ui.norm_percentile_line_edit, self._ui.thresh_intensity_line_edit,
                       self._ui.required_stable_line_edit, self._ui.check_delay_line_edit,
-                      self._ui.max_checks_line_edit]:
+                      self._ui.max_checks_line_edit, self._ui.output_directory_line_edit,
+                      self._ui.testing_input_directory_line_edit, self._ui.testing_mask_directory_line_edit,
+                      self._ui.training_input_directory_line_edit, self._ui.training_mask_directory_line_edit,
+                      self._ui.truth_intensity_line_edit]:
             widget.textChanged.connect(self._enable_save)
 
         for widget in [self._ui.queue_dropdown, self._ui.format_dropdown,
-                       self._ui.masking_dropdown, self._ui.extraction_dropdown]:
+                       self._ui.masking_dropdown, self._ui.extraction_dropdown,
+                       self._ui.testing_method_dropdown]:
             widget.currentTextChanged.connect(self._enable_save)
 
         for widget in [self._ui.enqueue_checkbox, self._ui.normalization_checkbox,
@@ -197,9 +205,16 @@ class ConfigWindow(QMainWindow):
         if directory:
             self._ui.directory_line_edit.setText(directory)
 
+    def _select_directory(self, line_edit: QLineEdit):
+        directory = QFileDialog.getExistingDirectory(self, 'Select Image Directory')
+        if directory:
+            line_edit.setText(directory)
+
     def _load_config_to_ui(self):
         if self._config.directory:
             self._ui.directory_line_edit.setText(str(self._config.directory))
+        if self._config.output_directory:
+            self._ui.output_directory_line_edit.setText(str(self._config.output_directory))
         queue_index = 0 if self._config.queue_type.lower() == 'file' else 1
         self._ui.queue_dropdown.setCurrentIndex(queue_index)
         self._ui.enqueue_checkbox.setChecked(self._config.enqueue_existing)
@@ -223,6 +238,15 @@ class ConfigWindow(QMainWindow):
         self._ui.check_delay_line_edit.setText(str(self._config.check_delay))
         self._ui.max_checks_line_edit.setText(str(self._config.max_checks))
 
+        if self._config.training_directory_raw:
+            self._ui.training_input_directory_line_edit.setText(str(self._config.training_directory_raw))
+        if self._config.training_directory_truth:
+            self._ui.training_mask_directory_line_edit.setText(str(self._config.training_directory_truth))
+        if self._config.testing_directory_raw:
+            self._ui.testing_input_directory_line_edit.setText(str(self._config.testing_directory_raw))
+        if self._config.testing_directory_truth:
+            self._ui.testing_mask_directory_line_edit.setText(str(self._config.testing_directory_truth))
+
         self._update_ui()
 
     def _update_ui(self):
@@ -243,6 +267,7 @@ class ConfigWindow(QMainWindow):
     def _save_config(self):
         try:
             self._config.set('files', 'Directory', self._ui.directory_line_edit.text())
+            self._config.set('files', 'Output_Directory', self._ui.output_directory_line_edit.text())
             queue_type = 'File' if self._ui.queue_dropdown.currentIndex() == 0 else 'Image'
             self._config.set('files', 'Queue_Type', queue_type)
             self._config.set('files', 'Enqueue_Existing', self._ui.enqueue_checkbox.isChecked())
@@ -268,6 +293,14 @@ class ConfigWindow(QMainWindow):
                             int(self._ui.required_stable_line_edit.text()))
             self._config.set('processing', 'Check_Delay', float(self._ui.check_delay_line_edit.text()))
             self._config.set('processing', 'Max_Checks', int(self._ui.max_checks_line_edit.text()))
+
+            self._config.set('bayesian', 'Training_Directory_Raw', self._ui.training_input_directory_line_edit.text())
+            self._config.set('bayesian', 'Training_Directory_Truth', self._ui.training_mask_directory_line_edit.text())
+            self._config.set('bayesian', 'Testing_Directory_Raw', self._ui.testing_input_directory_line_edit.text())
+            self._config.set('bayesian', 'Testing_Directory_Truth', self._ui.testing_mask_directory_line_edit.text())
+            self._config.set('bayesian', 'Truth_Intensity', int(self._ui.truth_intensity_line_edit.text()))
+            testing_method = 'Circle' if self._ui.testing_method_dropdown.currentIndex() == 0 else 'Mask'
+            self._config.set('bayesian', 'Testing_Method', testing_method)
 
             self._config.validate()
             self._config.save()
