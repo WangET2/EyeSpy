@@ -33,6 +33,7 @@ class ProcessingWorker(QObject):
         else:
             self._batch_process()
 
+
     def stop(self) -> None:
         self._stopped = True
 
@@ -54,6 +55,7 @@ class ProcessingWorker(QObject):
                             self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
+        self.finished.emit()
 
     def _live_process(self) -> None:
         queue = self._config.create_queue()
@@ -112,6 +114,7 @@ class BayesianWorker(QObject):
                 finally:
                     self._counter += 1
         self.report.emit(f'Suggested Threshold: {trainer.train():.4f}')
+        self.finished.emit()
 
     def _test(self):
         tester = self._config.create_tester()
@@ -128,6 +131,7 @@ class BayesianWorker(QObject):
                 finally:
                     self._counter += 1
         self.report.emit(tester.report())
+        self.finished.emit()
 
     def stop(self):
         self._stopped = True
@@ -137,7 +141,7 @@ class ConfigWindow(QMainWindow):
         super().__init__()
         self._ui = Ui_ConfigWindow()
         self._ui.setupUi(self)
-        self.setWindowTitle("Settings")
+        self.setWindowTitle('Settings')
         self._config = config
 
         self._ui.directory_push_button.clicked.connect(self._select_directory)
@@ -172,7 +176,7 @@ class ConfigWindow(QMainWindow):
         self._ui.save_button.setEnabled(True)
 
     def _select_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Image Directory")
+        directory = QFileDialog.getExistingDirectory(self, 'Select Image Directory')
         if directory:
             self._ui.directory_line_edit.setText(directory)
 
@@ -251,11 +255,11 @@ class ConfigWindow(QMainWindow):
             self._config.validate()
             self._config.save()
             self._ui.save_button.setEnabled(False)
-            QMessageBox.information(self, "Success", "Configuration saved successfully!")
+            QMessageBox.information(self, 'Success', 'Configuration saved successfully!')
         except ValueError as e:
-            QMessageBox.warning(self, "Invalid Input", f"\n{str(e)}")
+            QMessageBox.warning(self, 'Invalid Input', f'\n{str(e)}')
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save configuration:\n{str(e)}")
+            QMessageBox.critical(self, 'Error', f'Failed to save configuration:\n{str(e)}')
 
     def _reset_config(self):
         self._config.reset()
@@ -284,11 +288,11 @@ class ProcessingWindow(QMainWindow):
         self._worker.moveToThread(self._processing_thread)
         self._processing_thread.started.connect(self._worker.run)
         self._worker.finished.connect(self._processing_thread.quit)
-        self._worker.finished.connect(self._worker.deleteLater)
+        #self._worker.finished.connect(self._worker.deleteLater)
         self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
-        self._worker.finished.connect(self._processing_finished)
-        self._processing_thread.finished.connect(self._processing_finished)
+        #self._worker.finished.connect(self._processing_finished)
+        #self._processing_thread.finished.connect(self._processing_finished)
 
         self._processing_thread.start()
 
@@ -318,12 +322,54 @@ class ProcessingWindow(QMainWindow):
         cursor.movePosition(QTextCursor.End)
         self._ui.output_textbox.setTextCursor(cursor)
 
+class BayesianWindow(QMainWindow):
+    def __init__(self, config: Config, mode:str):
+        super().__init__()
+        self._config = config
+        self._mode = mode
+        self._ui = Ui_ProcessingWindow
+        self._ui.setupUi(self)
+        title = 'Bayesian Training' if mode.lower() == 'training' else 'Bayesian Testing'
+        self.setWindowTitle(title)
+        self._processing_thread = None
+        self._worker = None
+        self._ui.exit_button.clicked.connect(self._exit)
+        self._run_bayesian()
+
+    def _run_bayesian(self):
+        if self._bayesian_thread or self._worker:
+            return
+        self._bayesian_thread = QThread()
+        self._worker = BayesianWorker(self._config, self._mode)
+        self._worker.moveToThread(self._bayesian_thread)
+        self._bayesian_thread.started.connect(self._worker.run)
+        self._worker.report.connect(self._show_output)
+        self._worker.error.connect(self._show_output)
+        self._worker.proress.connect(self._show_output)
+        self._worker.finished.connect(self._processing_thread.quit)
+        self._bayesian_thread.start()
+
+    def _exit(self):
+        if self._worker:
+            self._worker.stop()
+        if self._processing_thread:
+            self._processing_thread.quit()
+            self._processing_thread.wait(1000)
+        self.close()
+
+    def _show_output(self, output: str) -> None:
+        self._ui.output_textbox.append(output)
+        cursor = self._ui.output_textbox.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self._ui.output_textbox.setTextCursor(cursor)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._ui = Ui_MainWindow()
         self._ui.setupUi(self)
-        self.setWindowTitle("EyeSpy")
+        self.setWindowTitle('EyeSpy')
 
         self._config = Config()
         self.processing_window = None
