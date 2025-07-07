@@ -213,8 +213,12 @@ class ConfigWindow(QMainWindow):
     def _load_config_to_ui(self):
         if self._config.directory:
             self._ui.directory_line_edit.setText(str(self._config.directory))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         if self._config.output_directory:
             self._ui.output_directory_line_edit.setText(str(self._config.output_directory))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         queue_index = 0 if self._config.queue_type.lower() == 'file' else 1
         self._ui.queue_dropdown.setCurrentIndex(queue_index)
         self._ui.enqueue_checkbox.setChecked(self._config.enqueue_existing)
@@ -240,12 +244,20 @@ class ConfigWindow(QMainWindow):
 
         if self._config.training_directory_raw:
             self._ui.training_input_directory_line_edit.setText(str(self._config.training_directory_raw))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         if self._config.training_directory_truth:
             self._ui.training_mask_directory_line_edit.setText(str(self._config.training_directory_truth))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         if self._config.testing_directory_raw:
             self._ui.testing_input_directory_line_edit.setText(str(self._config.testing_directory_raw))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         if self._config.testing_directory_truth:
             self._ui.testing_mask_directory_line_edit.setText(str(self._config.testing_directory_truth))
+        else:
+            self._ui.training_input_directory_line_edit.setText('')
         self._ui.truth_intensity_line_edit.setText(str(self._config.truth_intensity))
         method_index = 0 if self._config.masking_method.lower() == 'circle' else 1
         self._ui.masking_dropdown.setCurrentIndex(method_index)
