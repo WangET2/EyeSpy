@@ -323,6 +323,7 @@ class ConfigWindow(QMainWindow):
 
     def _reset_config(self):
         self._config.reset()
+        QMessageBox.information(self, 'Success', 'Configuration reset!')
         self._ui.save_button.setEnabled(False)
         self._load_config_to_ui()
 
