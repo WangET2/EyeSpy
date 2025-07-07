@@ -168,9 +168,9 @@ class ConfigWindow(QMainWindow):
         self._ui.testing_mask_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.testing_mask_directory_line_edit))
         self._ui.save_button.clicked.connect(self._save_config)
         self._ui.reset_button.clicked.connect(self._reset_config)
-        self._connect_save_signals()
         self._connect_disabled_buttons()
         self._load_config_to_ui()
+        self._connect_save_signals()
 
     def _connect_disabled_buttons(self):
         self._ui.normalization_checkbox.stateChanged.connect(self._update_ui)
@@ -334,6 +334,7 @@ class ConfigWindow(QMainWindow):
         if response == QMessageBox.Yes:
             self._config.reset()
             self._load_config_to_ui()
+            self._unsaved_changes = False
             QMessageBox.information(self, 'Success', 'Configuration reset!')
             self._ui.save_button.setEnabled(False)
         elif response == QMessageBox.No:
