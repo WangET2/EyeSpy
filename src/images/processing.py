@@ -26,7 +26,7 @@ class Processor:
         params = self._fitter(processed_img, scaling)
         return mean_intensity(img_array, params), params
 
-    def process(self, img_array: np.ndarray, scaling: float, white_point: int) -> np.ndarray:
+    def process(self, img_array: np.ndarray, white_point: int, scaling: float=0.0) -> np.ndarray:
         processed_img = np.copy(img_array)
         if self._normalizer:
             processed_img = self._normalizer(img_array, white_point)
@@ -44,7 +44,7 @@ class Processor:
         y_coords, x_coords = np.ogrid[:img_array.shape[0], :img_array.shape[1]]
         dist_squared = (y_coords - roi.center_y) ** 2 + (x_coords - roi.center_x) ** 2
         mask = dist_squared <= roi.radius ** 2
-        return img_array[mask]
+        return np.where(mask,255, 0)
 
 
 def normalize(img_array, white_point:int, percentile: float) -> np.ndarray:
