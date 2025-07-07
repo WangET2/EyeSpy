@@ -1,5 +1,7 @@
 import sys
 import os
+from typing import Iterable
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtCore import pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QTextCursor
@@ -374,22 +376,26 @@ class MainWindow(QMainWindow):
         self._config = Config()
         self.processing_window = None
         self.config_window = None
+        self.bayesian_window = None
 
         self._ui.live_process_button.clicked.connect(self.start_live_processing)
         self._ui.batch_process_button.clicked.connect(self.start_batch_processing)
+        self._ui.training_button.clicked.connect(self.start_training)
+        self._ui.testing_button.clicked.connect(self.start_testing)
         self._ui.config_button.clicked.connect(self.show_config)
 
-    def _validate_directory(self) -> bool:
-        if not self._config.directory:
-            QMessageBox.warning(self, 'Config Error', 'No directory selected. Select directory in settings before processing.')
-            return False
-        if not self._config.directory.exists():
-            QMessageBox.warning(self, 'Config Error', f'Selected directory {self._config.directory} does not appear to exist or cannot be accessed.')
-            return False
+    def _validate_directory(self, dirs: Iterable) -> bool:
+        for directory in dirs:
+            if not directory:
+                QMessageBox.warning(self, 'Config Error', 'No Training director[y/ies] selected. Select directory in settings before testing.')
+                return False
+            if not directory.exists():
+                QMessageBox.warning(self, 'Config Error', f'Selected directory {self._config.directory} does not appear to exist or cannot be accessed.')
+                return False
         return True
 
     def start_live_processing(self) -> None:
-        if not self._validate_directory():
+        if not self._validate_directory([self._config.directory]):
             return
         if self.processing_window is None or not self.processing_window.isVisible():
             self.processing_window = ProcessingWindow(self._config)
@@ -398,13 +404,31 @@ class MainWindow(QMainWindow):
         self.processing_window.activateWindow()
 
     def start_batch_processing(self):
-        if not self._validate_directory():
+        if not self._validate_directory([self._config.directory]):
             return
         if self.processing_window is None or not self.processing_window.isVisible():
             self.processing_window = ProcessingWindow(self._config, live=False)
         self.processing_window.show()
         self.processing_window.raise_()
         self.processing_window.activateWindow()
+
+    def start_training(self):
+        if not self._validate_directory([self._config.training_directory_raw, self._config.training_directory_truth]):
+            return
+        if self.bayesian_window is not None or not self.bayesian_window.isVisible():
+            self.bayesian_window = BayesianWindow(self._configg, mode='training')
+        self.bayesian_window.show()
+        self.bayesian_window.raise_()
+        self.bayesian_window.activateWindow()
+
+    def start_testing(self):
+        if not self._validate_directory([self._config.testing_directory_raw, self._config.testing_directory_truth]):
+            return
+        if self.bayesian_window is not None or not self.bayesian_window.isVisible():
+            self.bayesian_window = BayesianWindow(self._configg, mode='testing')
+        self.bayesian_window.show()
+        self.bayesian_window.raise_()
+        self.bayesian_window.activateWindow()
 
     def show_config(self):
         if self.config_window is None:
