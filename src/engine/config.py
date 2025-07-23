@@ -5,7 +5,8 @@ from functools import partial
 from src.images.image import BaseImage, TiffImage, CziImage, stable_read
 from src.engine.images_queue import BaseQueue, LazyQueue, EagerQueue
 from src.images.bayesian import Trainer, Tester
-from src.images.processing import Processor, normalize
+from src.processing.processor import Processor
+import src.processing.processing_functions as pf
 from czifile import imread as cziread
 from tifffile import imread as tiffread
 
@@ -48,7 +49,7 @@ class Config:
 
     @property
     def scaling(self) -> float:
-        return self._config.getfloat('images', 'Scaling', fallback=3.45)
+        return self._config.getfloat('images', 'Scaling', fallback=4.88)
 
     @property
     def max_radius(self) -> int:
@@ -127,14 +128,14 @@ class Config:
                                      'Output_Directory': './output'}
             self._config['images'] = {'Image_Format': 'CZI',
                                         'White_Point': '4095',
-                                        'Scaling': '3.45',
+                                        'Scaling': '4.88',
                                         'Max_Radius': '2500'}
-            self._config['processing'] = {'Masking_Method': 'Thresholding',
+            self._config['processing'] = {'Masking_Method': 'Eigenvalue',
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '99.5',
                                         'Threshold_Level': '1526',
                                         'Center_Method': 'Median',
-                                        'Radius_Method': 'Eigenvalue',
+                                        'Radius_Method': 'Contour',
                                         'Required_Stable': '3',
                                         'Check_Delay': '0.2',
                                         'Max_Checks': '10'}
@@ -191,23 +192,23 @@ class Config:
         return queue_type(self.directory, image_factory=factory, file_format=self.image_format, enqueue_existing=self.enqueue_existing)
 
     def create_processor(self) -> Processor:
-        return Processor(normalization=self.normalization, normalization_percentile=self.normalization_percentile,
-                         masking_method=self.masking_method, threshold_level=self.threshold_level,
-                         radius_method=self.radius_method, max_radius=self.max_radius)
+        normalizer = None if self.normalization == False else partial(pf.normalize, percentile=self.normalization_percentile)
+        masker = partial(pf.threshold_image, threshold=1526) if self.masking_method.lower() == 'thresholding' else pf.kmeans
+        fitter = partial(pf.circle_params_contour, max_radius=self.max_radius) if self.radius_method.lower() == 'contour' \
+            else partial(pf.circle_params_eigenvalue, max_radius=self.max_radius)
+        return Processor(normalizer=normalizer, masker=masker, fitter=fitter)
 
     def stable_reader(self) -> Callable:
         reader = cziread if self.image_format == 'CZI' else tiffread
         return partial(stable_read, reader=reader, max_attempts=self.max_checks, delay_s=self.check_delay, required_stable=self.required_stable)
 
     def create_trainer(self) -> Trainer:
-        preprocessing = partial(normalize, percentile=self.normalization_percentile) if self.normalization else None
+        preprocessing = partial(pf.normalize, percentile=self.normalization_percentile) if self.normalization else None
         return Trainer(raw_dir=self.training_directory_raw, truth_dir=self.training_directory_truth,
                        truth_intensity=self.truth_intensity, preprocessing=preprocessing)
 
     def create_tester(self) -> Tester:
         temp_processor = self.create_processor()
-        pipeline = temp_processor.process
-        if self.testing_method.lower() == 'circle':
-            pipeline = temp_processor.circular_roi
+        pipeline = temp_processor.circular_roi if self.testing_method.lower() == 'circle' else temp_processor.binary_mask
         return Tester(raw_dir=self.testing_directory_raw, truth_dir=self.testing_directory_truth,
                       truth_intensity=self.truth_intensity, pipeline=pipeline)

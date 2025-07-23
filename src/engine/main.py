@@ -51,12 +51,12 @@ class ProcessingWorker(QObject):
                 if current_image is not None:
                     try:
                         queue.dequeue()
-                        result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
-                        center_y, center_x, radius = roi
-                        writer.write_row([str(current_image), f'{result:.3f}'])
-                        self.output.emit(f'{count}/{to_process} - {current_image}: {result:.3f}')
+                        results = processor.process(current_image)
+                        writer.write_row([str(current_image), f'{results.mean_fluorescence:.3f}'])
+                        self.output.emit(f'{count}/{to_process} - {current_image}: {results.mean_fluorescence:.3f}')
                         if self._img_writer is not None:
-                            self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
+                            center_y, center_x = results.center
+                            self._img_writer.write_roi(results.writeable_img, current_image.name, current_image.white_point, center_y, center_x, results.radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
                     finally:
@@ -76,12 +76,12 @@ class ProcessingWorker(QObject):
                 if current_image is not None:
                     try:
                         queue.dequeue()
-                        result, roi = processor.circular_mean_fluorescence(current_image.array, current_image.scaling, current_image.white_point)
-                        center_y, center_x, radius = roi
-                        writer.write_row([str(current_image), f'{result:.3f}'])
-                        self.output.emit(f'{current_image}: {result:.3f}')
+                        results = processor.process(current_image)
+                        writer.write_row([str(current_image), f'{results.mean_fluorescence:.3f}'])
+                        self.output.emit(f'{current_image}: {results.mean_fluorescence:.3f}')
                         if self._img_writer is not None:
-                            self._img_writer.write_roi(current_image.array, current_image.name, current_image.white_point, center_y, center_x, radius)
+                            center_y, center_x = results.center
+                            self._img_writer.write_roi(results.writeable_img, current_image.name, current_image.white_point, center_y, center_x, results.radius)
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()
@@ -255,8 +255,8 @@ class ConfigWindow(QMainWindow):
         else:
             self._ui.training_input_directory_line_edit.setText('')
         self._ui.truth_intensity_line_edit.setText(str(self._config.truth_intensity))
-        method_index = 0 if self._config.masking_method.lower() == 'circle' else 1
-        self._ui.masking_dropdown.setCurrentIndex(method_index)
+        method_index = 0 if self._config.testing_method.lower() == 'circle' else 1
+        self._ui.testing_method_dropdown.setCurrentIndex(method_index)
 
         self._update_ui()
 
