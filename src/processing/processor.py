@@ -16,7 +16,7 @@ class Processor:
         params = self._fitter(processed_img, scaling)
         return mean_intensity(img_array, params), params
 
-    def process(self, img: BaseImage) -> ProcessingResult:
+    def process(self, img: BaseImage) -> FluorescenceResult:
         processed_img = np.copy(img.array)
         binary_img = self.binary_mask(img)
         fitting_img = cv.normalize(binary_img, dst=None, alpha=0, beta=255,
@@ -26,7 +26,7 @@ class Processor:
         params = self._fitter(fitting_img, white_point=img.white_point, img_scaling=img.scaling)
         mean_fluorescence = mean_intensity(img.array, params)
         return FluorescenceResult(normalized=True if self._normalizer is not None else False,
-                                writeable_img=processed_img, binary_img=binary_img, center=(params.centery, params.centerx),
+                                writeable_img=processed_img, binary_img=binary_img, center=(params.center_y, params.center_x),
                                 radius=params.radius, mean_fluorescence=mean_fluorescence)
 
     def binary_mask(self, img: BaseImage):
