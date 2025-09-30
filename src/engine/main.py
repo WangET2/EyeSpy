@@ -415,7 +415,7 @@ class ProcessingWindow(QMainWindow):
 
     def _add_label_to_dropdown(self) -> None:
         new_label = self._ui.label_combo_box.currentText()
-        if new_label.strip():
+        if new_label.strip() and new_label not in [self._ui.label_combo_box.itemText(i) for i in range(self._ui.label_combo_box.count())]:
             self._ui.label_combo_box.addItem(new_label)
 
 class BayesianWindow(QMainWindow):
