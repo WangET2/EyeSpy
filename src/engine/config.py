@@ -27,6 +27,10 @@ class Config:
         return self._config.get('files', 'Queue_Type', fallback='File')
 
     @property
+    def write_labels(self) -> bool:
+        return self._config.getboolean('files', 'Write_Labels', fallback=True)
+
+    @property
     def enqueue_existing(self) -> bool:
         return self._config.getboolean('files','Enqueue_Existing', fallback=False)
 
@@ -124,6 +128,7 @@ class Config:
             self._config['files'] = {'Directory': 'None',
                                      'Queue_Type': 'File',
                                      'Enqueue_Existing': 'False',
+                                     'Write_Labels': 'True',
                                      'Write_ROI': 'False',
                                      'Output_Directory': './output'}
             self._config['images'] = {'Image_Format': 'CZI',

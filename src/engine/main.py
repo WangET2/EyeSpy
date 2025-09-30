@@ -113,14 +113,14 @@ class BayesianWorker(QObject):
     def _train(self):
         trainer = self._config.create_trainer()
         while not self._queue.is_empty() and not self._stopped:
-            current_image = self._queue.front()
-            if current_image is not None:
+            raw_image = self._queue.front()
+            if raw_image is not None:
                 try:
                     self._queue.dequeue()
-                    trainer.update(img_name=current_image.name, white_point=current_image.white_point)
-                    self.output.emit(f'Training {current_image} Complete: {self._counter}/{self._max}')
+                    trainer.update(raw_image=raw_image, truth_image=None)
+                    self.output.emit(f'Training {raw_image.name} Complete: {self._counter}/{self._max}')
                 except Exception as e:
-                    self.error.emit(f'Error training with {current_image}: {str(e)}')
+                    self.error.emit(f'Error training with {raw_image.name}: {str(e)}')
                 finally:
                     self._counter += 1
         self.output.emit('Calculating...')
@@ -368,9 +368,11 @@ class ProcessingWindow(QMainWindow):
         self._worker = None
         self._ui = Ui_ProcessingWindow()
         self._ui.setupUi(self)
+        self._ui.label_group_box.setEnabled(False)
         title = 'Live Processing' if live else 'Batch Processing'
         self.setWindowTitle(title)
         self._ui.exit_button.clicked.connect(self._exit)
+        self._ui.label_save_button.clicked.connect(self._add_label_to_dropdown)
         self.start_processing()
 
     def start_processing(self) -> None:
@@ -383,7 +385,6 @@ class ProcessingWindow(QMainWindow):
         self._worker.finished.connect(self._processing_thread.quit)
         self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
-
         self._processing_thread.start()
 
     def _exit(self):
@@ -407,6 +408,11 @@ class ProcessingWindow(QMainWindow):
         cursor = self._ui.output_textbox.textCursor()
         cursor.movePosition(QTextCursor.End)
         self._ui.output_textbox.setTextCursor(cursor)
+
+    def _add_label_to_dropdown(self) -> None:
+        new_label = self._ui.label_combo_box.currentText()
+        if new_label.strip():
+            self._ui.label_combo_box.addItem(new_label)
 
 class BayesianWindow(QMainWindow):
     def __init__(self, config: Config, mode:str):

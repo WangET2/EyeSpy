@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Callable
+from src.images.image import BaseImage
 import numpy as np
 import tifffile as tf
 import czifile
@@ -39,6 +40,31 @@ class Trainer:
         hist_true, _ = np.histogram(current_true, bins=self._bins, range=(0, self._bins-1), density=True)
         hist_false, _ = np.histogram(current_false, bins=self._bins, range=(0, self._bins-1), density=True)
         return np.argmin(np.abs((hist_true * p_true) - (hist_false * p_false)))
+
+class Trainer:
+    def __init__(self, truth_intensity:int=255, preprocessing: Callable=None, bins:int=4096):
+        self._truth_intensity = truth_intensity
+        self._preprocessing = preprocessing
+        self._bins = bins
+        self._true = []
+        self._false = []
+
+    def update(self, raw_image: BaseImage, truth_image: BaseImage, **kwargs):
+        raw_array = np.copy(raw_image.array)
+        if self._preprocessing is not None:
+            raw_array = self._preprocessing(raw_array, **kwargs)
+        self._true.append(raw_array[truth_image.array==self._truth_intensity])
+        self._false.append(raw_array[truth_image.array==0])
+
+    def train(self) -> int:
+        current_true = np.concatenate(self._true)
+        current_false = np.concatenate(self._false)
+        p_true = len(current_true) / (len(current_true) + len(current_false))
+        p_false = 1 - p_true
+        hist_true, _ = np.histogram(current_true, bins=self._bins, range=(0, self._bins-1), density=True)
+        hist_false, _ = np.histogram(current_false, bins=self._bins, range=(0, self._bins-1), density=True)
+        return np.argmin(np.abs((hist_true * p_true) - (hist_false * p_false)))
+
 
 class Tester:
     def __init__(self, raw_dir: Path, truth_dir: Path, truth_intensity:int=255,
