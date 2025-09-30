@@ -18,6 +18,7 @@ class ProcessingWorker(QObject):
     output = pyqtSignal(str)
     error = pyqtSignal(str)
     finished = pyqtSignal()
+    get_label = pyqtSignal()
 
     def __init__(self, config: Config, *, live: bool=True):
         super().__init__()
@@ -86,6 +87,9 @@ class ProcessingWorker(QObject):
                     except Exception as e:
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()
+
+    def _receive_combo_value(self, label: str) -> str:
+        return label
 
 class BayesianWorker(QObject):
     output = pyqtSignal(str)
@@ -364,6 +368,8 @@ class ConfigWindow(QMainWindow):
             event.accept()
 
 class ProcessingWindow(QMainWindow):
+    send_label = pyqtSignal(str)
+
     def __init__(self, config: Config, *, live=True):
         super().__init__()
         self._config = config
@@ -389,6 +395,9 @@ class ProcessingWindow(QMainWindow):
         self._worker.finished.connect(self._processing_thread.quit)
         self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
+        if self._config.write_labels:
+            self._worker.get_label.connect(self._send_label)
+            self._send_label.connect(self._worker._receive_combo_value)
         self._processing_thread.start()
 
     def _exit(self):
@@ -417,6 +426,9 @@ class ProcessingWindow(QMainWindow):
         new_label = self._ui.label_combo_box.currentText()
         if new_label.strip() and new_label not in [self._ui.label_combo_box.itemText(i) for i in range(self._ui.label_combo_box.count())]:
             self._ui.label_combo_box.addItem(new_label)
+
+    def _send_label(self) -> str:
+        return self._ui.label_combo_box.currentText()
 
 class BayesianWindow(QMainWindow):
     def __init__(self, config: Config, mode:str):
