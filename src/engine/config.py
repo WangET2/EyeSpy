@@ -135,7 +135,7 @@ class Config:
                                         'White_Point': '4095',
                                         'Scaling': '4.88',
                                         'Max_Radius': '2500'}
-            self._config['processing'] = {'Masking_Method': 'Eigenvalue',
+            self._config['processing'] = {'Masking_Method': 'Thresholding',
                                         'Normalization': 'True',
                                         'Normalization_Percentile': '99.5',
                                         'Threshold_Level': '1526',
@@ -198,7 +198,7 @@ class Config:
 
     def create_processor(self) -> Processor:
         normalizer = None if self.normalization == False else partial(pf.normalize, percentile=self.normalization_percentile)
-        masker = partial(pf.threshold_image, threshold=1526) if self.masking_method.lower() == 'thresholding' else pf.kmeans
+        masker = partial(pf.threshold_image, threshold=self.threshold_level) if self.masking_method.lower() == 'thresholding' else pf.kmeans
         fitter = partial(pf.circle_params_contour, max_radius=self.max_radius) if self.radius_method.lower() == 'contour' \
             else partial(pf.circle_params_eigenvalue, max_radius=self.max_radius)
         return Processor(normalizer=normalizer, masker=masker, fitter=fitter)

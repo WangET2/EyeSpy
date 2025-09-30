@@ -25,6 +25,7 @@ class ProcessingWorker(QObject):
         self._live = live
         self._stopped = False
         self._img_writer = None
+        self._header = ['filename', 'fluorescence', 'label'] if self._config.write_labels else ['filename', 'fluorescence']
         if self._config.write_roi:
             self._img_writer = TiffWriter(self._config.output_directory)
 
@@ -43,7 +44,7 @@ class ProcessingWorker(QObject):
         queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format, enqueue_existing=True)
         processor = self._config.create_processor()
         to_process = len(queue)
-        with CSVWriter(self._config.output_directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.output_directory, header = self._header) as writer:
             begin_time = time()
             count = 1
             while not queue.is_empty() and not self._stopped:
@@ -69,7 +70,7 @@ class ProcessingWorker(QObject):
     def _live_process(self) -> None:
         queue = self._config.create_queue()
         processor = self._config.create_processor()
-        with CSVWriter(self._config.output_directory, header = ['filename', 'fluorescence']) as writer:
+        with CSVWriter(self._config.output_directory, header = self._header) as writer:
             while not self._stopped:
                 queue.update()
                 current_image = queue.front()
@@ -168,6 +169,7 @@ class ConfigWindow(QMainWindow):
         self._ui.testing_mask_directory_button.clicked.connect(partial(self._select_directory, line_edit=self._ui.testing_mask_directory_line_edit))
         self._ui.save_button.clicked.connect(self._save_config)
         self._ui.reset_button.clicked.connect(self._reset_config)
+        self._ui.save_button.setEnabled(False)
         self._connect_disabled_buttons()
         self._load_config_to_ui()
         self._connect_save_signals()
@@ -194,7 +196,7 @@ class ConfigWindow(QMainWindow):
             widget.currentTextChanged.connect(self._enable_save)
 
         for widget in [self._ui.enqueue_checkbox, self._ui.normalization_checkbox,
-                       self._ui.tiff_checkbox]:
+                       self._ui.tiff_checkbox, self._ui.label_checkbox]:
             widget.stateChanged.connect(self._enable_save)
 
     def _enable_save(self):
@@ -210,13 +212,14 @@ class ConfigWindow(QMainWindow):
         if self._config.directory:
             self._ui.directory_line_edit.setText(str(self._config.directory))
         else:
-            self._ui.training_input_directory_line_edit.setText('')
+            self._ui.directory_line_edit.setText('')
         if self._config.output_directory:
             self._ui.output_directory_line_edit.setText(str(self._config.output_directory))
         else:
-            self._ui.training_input_directory_line_edit.setText('')
+            self._ui.output_directory_line_edit.setText('')
         queue_index = 0 if self._config.queue_type.lower() == 'file' else 1
         self._ui.queue_dropdown.setCurrentIndex(queue_index)
+        self._ui.label_checkbox.setChecked(self._config.write_labels)
         self._ui.enqueue_checkbox.setChecked(self._config.enqueue_existing)
         self._ui.tiff_checkbox.setChecked(self._config.write_roi)
 
@@ -245,7 +248,7 @@ class ConfigWindow(QMainWindow):
         if self._config.training_directory_truth:
             self._ui.training_mask_directory_line_edit.setText(str(self._config.training_directory_truth))
         else:
-            self._ui.training_input_directory_line_edit.setText('')
+            self._ui.training_mask_directory_line_edit.setText('')
         if self._config.testing_directory_raw:
             self._ui.testing_input_directory_line_edit.setText(str(self._config.testing_directory_raw))
         else:
@@ -253,7 +256,7 @@ class ConfigWindow(QMainWindow):
         if self._config.testing_directory_truth:
             self._ui.testing_mask_directory_line_edit.setText(str(self._config.testing_directory_truth))
         else:
-            self._ui.training_input_directory_line_edit.setText('')
+            self._ui.training_mask_directory_line_edit.setText('')
         self._ui.truth_intensity_line_edit.setText(str(self._config.truth_intensity))
         method_index = 0 if self._config.testing_method.lower() == 'circle' else 1
         self._ui.testing_method_dropdown.setCurrentIndex(method_index)
@@ -281,6 +284,7 @@ class ConfigWindow(QMainWindow):
             self._config.set('files', 'Output_Directory', self._ui.output_directory_line_edit.text())
             queue_type = 'File' if self._ui.queue_dropdown.currentIndex() == 0 else 'Image'
             self._config.set('files', 'Queue_Type', queue_type)
+            self._config.set('files', 'Write_Labels', self._ui.label_checkbox.isChecked())
             self._config.set('files', 'Enqueue_Existing', self._ui.enqueue_checkbox.isChecked())
             self._config.set('files', 'Write_ROI', self._ui.tiff_checkbox.isChecked())
 
@@ -368,7 +372,7 @@ class ProcessingWindow(QMainWindow):
         self._worker = None
         self._ui = Ui_ProcessingWindow()
         self._ui.setupUi(self)
-        self._ui.label_group_box.setEnabled(False)
+        self._ui.label_group_box.setEnabled(self._config.write_labels)
         title = 'Live Processing' if live else 'Batch Processing'
         self.setWindowTitle(title)
         self._ui.exit_button.clicked.connect(self._exit)
