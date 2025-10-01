@@ -3,7 +3,7 @@ from time import time
 from typing import Iterable
 from functools import partial
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QFileDialog, QLineEdit
-from PyQt5.QtCore import pyqtSignal, QObject, QThread
+from PyQt5.QtCore import pyqtSignal, QObject, QThread, QEventLoop, pyqtSlot
 from PyQt5.QtGui import QTextCursor
 from src.gui.main_menu import Ui_MainWindow
 from src.gui.config_ui import Ui_ConfigWindow
@@ -26,6 +26,9 @@ class ProcessingWorker(QObject):
         self._live = live
         self._stopped = False
         self._img_writer = None
+        if self._config.write_labels:
+            self._previous_label = None
+            self._wait_loop = None
         self._header = ['filename', 'fluorescence', 'label'] if self._config.write_labels else ['filename', 'fluorescence']
         if self._config.write_roi:
             self._img_writer = TiffWriter(self._config.output_directory)
@@ -52,6 +55,7 @@ class ProcessingWorker(QObject):
                 current_image = queue.front()
                 if current_image is not None:
                     try:
+                        label = self._receive_combo_value() or ""
                         queue.dequeue()
                         results = processor.process(current_image)
                         writer.write_row([str(current_image), f'{results.mean_fluorescence:.3f}'])
@@ -77,9 +81,12 @@ class ProcessingWorker(QObject):
                 current_image = queue.front()
                 if current_image is not None:
                     try:
+                        if self._config.write_labels:
+                            label = self._receive_combo_value()
                         queue.dequeue()
                         results = processor.process(current_image)
-                        writer.write_row([str(current_image), f'{results.mean_fluorescence:.3f}'])
+                        writer.write_row([str(current_image), f'{results.mean_fluorescence:.3f}']+
+                                         ([label] if self._config.write_labels else []))
                         self.output.emit(f'{current_image}: {results.mean_fluorescence:.3f}')
                         if self._img_writer is not None:
                             center_y, center_x = results.center
@@ -88,8 +95,17 @@ class ProcessingWorker(QObject):
                         self.error.emit(f'Error processing {current_image}: {str(e)}')
         self.finished.emit()
 
-    def _receive_combo_value(self, label: str) -> str:
-        return label
+    @pyqtSlot(str)
+    def _on_label_receive(self, label: str) -> None:
+        self._previous_label = label
+        if self._wait_loop and self._wait_loop.isRunning():
+            self._wait_loop.quit()
+
+    def _receive_combo_value(self) -> str:
+        self._wait_loop = QEventLoop()
+        self.get_label.emit()
+        self._wait_loop.exec_()
+        return self._previous_label
 
 class BayesianWorker(QObject):
     output = pyqtSignal(str)
@@ -256,11 +272,11 @@ class ConfigWindow(QMainWindow):
         if self._config.testing_directory_raw:
             self._ui.testing_input_directory_line_edit.setText(str(self._config.testing_directory_raw))
         else:
-            self._ui.training_input_directory_line_edit.setText('')
+            self._ui.testing_input_directory_line_edit.setText('')
         if self._config.testing_directory_truth:
             self._ui.testing_mask_directory_line_edit.setText(str(self._config.testing_directory_truth))
         else:
-            self._ui.training_mask_directory_line_edit.setText('')
+            self._ui.testing_mask_directory_line_edit.setText('')
         self._ui.truth_intensity_line_edit.setText(str(self._config.truth_intensity))
         method_index = 0 if self._config.testing_method.lower() == 'circle' else 1
         self._ui.testing_method_dropdown.setCurrentIndex(method_index)
@@ -395,9 +411,10 @@ class ProcessingWindow(QMainWindow):
         self._worker.finished.connect(self._processing_thread.quit)
         self._worker.output.connect(self._show_output)
         self._worker.error.connect(self._show_output)
+        self._worker.window = self
         if self._config.write_labels:
             self._worker.get_label.connect(self._send_label)
-            self._send_label.connect(self._worker._receive_combo_value)
+            self.send_label.connect(self._worker._on_label_receive)
         self._processing_thread.start()
 
     def _exit(self):
@@ -427,8 +444,8 @@ class ProcessingWindow(QMainWindow):
         if new_label.strip() and new_label not in [self._ui.label_combo_box.itemText(i) for i in range(self._ui.label_combo_box.count())]:
             self._ui.label_combo_box.addItem(new_label)
 
-    def _send_label(self) -> str:
-        return self._ui.label_combo_box.currentText()
+    def _send_label(self) -> None:
+         self.send_label.emit(self._ui.label_combo_box.currentText())
 
 class BayesianWindow(QMainWindow):
     def __init__(self, config: Config, mode:str):
