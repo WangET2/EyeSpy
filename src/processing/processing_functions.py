@@ -29,7 +29,17 @@ def circle_params_contour(img_array: np.ndarray, img_scaling: float, max_radius:
 
     #Contour Fitting
     contours, _ = cv.findContours(img_array, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+    if not contours:
+        return Circle(center_y=img_array.shape[0] // 2,
+                      center_x=img_array.shape[1] // 2,
+                      radius=1)
+
     eye = max(contours, key=cv.contourArea)
+
+    if len(eye) < 5:
+        return Circle(center_y=img_array.shape[0] // 2,
+                      center_x=img_array.shape[1] // 2,
+                      radius=1)
 
     #Ellipse Fitting (calculate center)
     ellipse = cv.fitEllipse(eye)
