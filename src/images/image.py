@@ -9,7 +9,7 @@ import time
 
 class BaseImage(ABC):
     def __init__(self, full_path: Path, reader: Callable):
-        self._name = full_path.stem
+        self._name = Path(full_path).stem
         self._array = reader(full_path)
 
     def __repr__(self):
