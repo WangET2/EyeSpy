@@ -37,7 +37,8 @@ class BaseQueue(ABC):
 
     def update(self) -> None:
         for val in self._directory.iterdir():
-            if val.is_file() and val.suffix.lower() == f'.{self._format}'.lower():
+            if val.is_file() and val.suffix.lower() == f'.{self._format}'.lower() and 'live' not in val.name.lower()\
+                    and 'preview' not in val.name.lower():
                 self.enqueue(val)
 
     def __len__(self):
