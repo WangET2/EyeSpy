@@ -48,6 +48,10 @@ class ProcessingWorker(QObject):
         queue = LazyQueue(self._config.directory, image_factory=factory, file_format=self._config.image_format, enqueue_existing=True)
         processor = self._config.create_processor()
         to_process = len(queue)
+        if to_process <= 0:
+            self.output.emit('No processable images detected')
+            self.output.emit('Exiting...')
+            return
         with CSVWriter(self._config.output_directory, header = self._header) as writer:
             begin_time = time()
             count = 1
@@ -68,9 +72,9 @@ class ProcessingWorker(QObject):
                     finally:
                         count += 1
         completion_time = time()
-        self.output.emit(f'Total time: {completion_time - begin_time:.4f} sec')
-        self.output.emit(f'Average time per image: {(completion_time - begin_time) / to_process:.4f} sec')
-        self.finished.emit()
+        if to_process > 0:
+            self.output.emit(f'Total time: {completion_time - begin_time:.4f} sec')
+            self.output.emit(f'Average time per image: {(completion_time - begin_time) / to_process:.4f} sec')
 
     def _live_process(self) -> None:
         queue = self._config.create_queue()

@@ -22,7 +22,8 @@ class BaseQueue(ABC):
         self._format = file_format
         self._seen = set()
         for val in self._directory.iterdir():
-            if val.is_file() and val.suffix.lower() == f'.{self._format}'.lower():
+            if val.is_file() and val.suffix.lower() == f'.{self._format}'.lower() and 'live' not in val.name.lower()\
+                    and 'preview' not in val.name.lower():
                 if enqueue_existing:
                     self.enqueue(val)
                 else:
@@ -62,9 +63,10 @@ class LazyQueue(BaseQueue):
     def front(self) -> BaseImage | None:
         while not self.is_empty():
             imgpath = self._directory / self._deque[0]
-            image = self._factory(imgpath)
-            if image.array is not None:
-                return image
+            if imgpath.exists():
+                image = self._factory(imgpath)
+                if image.array is not None:
+                    return image
             self.dequeue()
         return None
 
@@ -73,10 +75,11 @@ class EagerQueue(BaseQueue):
         if val in self._seen:
             return
         imgpath = self._directory / val
-        image = self._factory(imgpath)
-        if image.array is not None:
-            self._deque.append(image)
-            self._seen.add(val)
+        if imgpath.exists():
+            image = self._factory(imgpath)
+            if image.array is not None:
+                self._deque.append(image)
+                self._seen.add(val)
 
     def front(self) -> BaseImage | None:
         return self._deque[0] if not self.is_empty() else None
